@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>صامولة للمندوبين</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/base.css">
+<style>
+  /* تطبيق المندوب: يُستخدم بيد واحدة في السيارة. إجراء واحد كبير في كل خطوة، والخريطة فوقه.
+     لا ينتقل للخطوة التالية قبل أن يؤكد الخادم الدليل (INV-10). */
+  body { background: var(--ground); }
+  .k-top { position: sticky; top: 0; z-index: 30; background: var(--ground); padding: calc(10px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px)); }
+  .k-top-in { max-width: 1180px; margin: 0 auto; display: flex; align-items: center; gap: 12px; }
+  .k-top .who { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+  .k-top .who .t { line-height: 1.3; } .k-top .who .t span { display: block; font-size: 12px; color: var(--muted); }
+  .avail { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 6px 0 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); font-weight: 500; }
+  .k-main { max-width: 1180px; margin: 0 auto; padding: 4px max(16px, env(safe-area-inset-right, 0px)) calc(92px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); display: grid; gap: 14px; }
+  .k-main > * { min-width: 0; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px; min-width: 0; }
+  .card > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+  .card h2 { font-size: 16px; font-weight: 600; }
+  h1.title { font-size: 20px; font-weight: 600; line-height: 1.3; }
+  .sub { color: var(--muted); }
+  .shift { position: relative; border-radius: 16px; overflow: hidden; aspect-ratio: 16 / 6; min-height: 120px; background: #15181a; color: #fff; isolation: isolate; display: grid; align-items: end; }
+  .shift img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; }
+  .shift::before { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(to top, rgba(10, 11, 12, 0.82), rgba(10, 11, 12, 0.1) 75%); }
+  .shift .t { padding: 14px 16px; display: grid; gap: 2px; }
+  .shift b { font-size: 17px; font-weight: 700; }
+  .shift span { font-size: 13px; color: rgba(255, 255, 255, 0.85); }
+  .earn { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+  .earn div { padding: 12px 14px; display: grid; gap: 2px; }
+  .earn div + div { border-inline-start: 1px solid var(--border); }
+  .earn span { font-size: 12px; color: var(--muted); }
+  .earn b { font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums; }
+
+  .job { display: grid; gap: 12px; }
+  .leg { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; align-items: start; position: relative; }
+  .leg .ic-wrap { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: var(--text); color: var(--surface); }
+  .leg.drop .ic-wrap { background: var(--accent); color: var(--accent-ink); border-radius: 50%; }
+  .leg .ic-wrap svg { width: 16px; height: 16px; }
+  .leg b { font-weight: 600; } .leg .s { font-size: 13px; color: var(--muted); }
+  .legs { display: grid; gap: 10px; position: relative; }
+  .legs::before { content: ""; position: absolute; inset-inline-start: 13px; top: 30px; bottom: 30px; width: 2px; background: var(--rule); }
+  .job-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 12px; border-top: 1px solid var(--rule); }
+  .pay { font-size: 20px; font-weight: 600; }
+  .job-foot .facts { font-size: 13px; color: var(--muted); }
+
+  .active { display: grid; gap: 14px; }
+  .stepper-h { display: flex; gap: 6px; }
+  .stepper-h span { flex: 1; height: 4px; border-radius: 999px; background: var(--active); }
+  .stepper-h span.on { background: var(--text); }
+  .big { height: 54px; font-size: 16px; }
+  .task { display: flex; gap: 12px; align-items: center; padding: 12px; border-radius: 12px; border: 1px solid var(--border); }
+  .task .t { flex: 1; min-width: 0; display: grid; gap: 2px; }
+  .task .t span { font-size: 13px; color: var(--muted); }
+  .task.done { border-color: var(--positive); }
+  .task .ok { color: var(--positive); display: flex; align-items: center; gap: 4px; font-weight: 500; font-size: 13px; }
+  .task .ok svg { width: 16px; height: 16px; }
+  .otp-in { display: flex; gap: 8px; direction: ltr; justify-content: center; }
+  .otp-in input { width: 54px; height: 60px; text-align: center; font: 500 26px var(--mono); border: 1px solid var(--control); border-radius: 12px; background: var(--surface); }
+  .otp-in input:focus { border-color: var(--text); outline: none; box-shadow: 0 0 0 1px var(--text); }
+  .net { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--warning); }
+  .net svg { width: 16px; height: 16px; }
+
+  .tabbar { position: fixed; inset: auto 0 0 0; z-index: 40; background: var(--surface); border-top: 1px solid var(--border); display: grid; grid-template-columns: repeat(3, 1fr);
+    padding: 6px max(8px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px)); }
+  .tabbar a { display: grid; justify-items: center; gap: 3px; padding: 6px 0; color: var(--muted); font-size: 11.5px; min-height: 48px; }
+  .tabbar a svg { width: 22px; height: 22px; }
+  .tabbar a[aria-current="page"] { color: var(--text); font-weight: 600; }
+  .hist-row { display: flex; gap: 12px; align-items: center; padding: 12px 0; }
+  .hist-row + .hist-row { border-top: 1px solid var(--rule); }
+  .hist-row .t { flex: 1; min-width: 0; }
+
+  @media (min-width: 960px) {
+    .tabbar { display: none; }
+    .k-top { border-bottom: 1px solid var(--border); background: var(--surface); margin-bottom: 20px; padding-top: 14px; padding-bottom: 14px; }
+    .k-main { padding-bottom: 40px; }
+    .desk-nav { display: flex !important; }
+    .split { display: grid; grid-template-columns: 440px minmax(0, 1fr); gap: 20px; align-items: start; }
+    .split .map-col { position: sticky; top: 96px; }
+    .jobs-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+  }
+  .desk-nav { display: none; gap: 4px; }
+  @media (max-width: 959px) { .desk-only { display: none !important; } }
+  @media (max-width: 959px) { .split { display: grid; gap: 14px; } .split .map-col { order: -1; } }
+  .desk-nav a[aria-current="page"] { background: var(--active); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="assets/data.js"></script>
+<script src="assets/store.js"></script>
+<script src="assets/ui.js"></script>
+<script>
+(function () {
+  const { A, fmt, S, C, D, POLICY } = Store; const U = UI;
+  const CID = D.meta.demoCourier; const me = C[CID]; const HOME = { x: 196, y: 150 };
+  const root = document.getElementById('app');
+  const ui = { scanned: {}, photo: {}, uploading: {}, otp: '', showOtp: false };
+
+  const groups = () => Store.get().orders.flatMap((o) => o.groups.map((g) => ({ o, g })));
+  const open = () => groups().filter((x) => x.g.state === 'READY' && x.g.job && !x.g.job.courier).sort((a, b) => b.g.job.createdAt - a.g.job.createdAt);
+  const active = () => groups().find((x) => x.g.job && x.g.job.courier === CID && Store.MOVING.includes(x.g.state));
+  const addrOf = (o) => D.customer.addresses.find((a) => a.id === o.addressId);
+  const dropPos = (o) => (addrOf(o) || {}).pos || ({ 'الملقا': { x: 150, y: 50 }, 'النرجس': { x: 286, y: 30 }, 'حطين': { x: 104, y: 100 }, 'العليا': { x: 214, y: 166 }, 'الربوة': { x: 290, y: 176 }, 'الملز': { x: 262, y: 192 }, 'النسيم': { x: 362, y: 156 }, 'الروضة': { x: 300, y: 112 } }[o.district] || { x: 240, y: 110 });
+  const km = (a, b) => Math.max(1, Math.round(Math.hypot(a.x - b.x, a.y - b.y) * 0.12));
+
+  function route() { const h = location.hash.slice(1); return ['jobs', 'history', 'account'].includes(h) ? h : 'jobs'; }
+
+  function header() {
+    const st = Store.get(); const r = route();
+    return `<header class="k-top"><div class="k-top-in">
+      <div class="who">${U.avatar(me.name, me.initial)}<div class="t"><b>${me.name}</b><span>${me.vehicle} · ${me.plate}</span></div></div>
+      <nav class="desk-nav">${[['jobs', 'المهام'], ['history', 'السجل'], ['account', 'الحساب']].map(([h, n]) => `<a class="btn ghost" href="#${h}" ${r === h ? 'aria-current="page"' : ''}>${n}</a>`).join('')}</nav>
+      <label class="avail"><span>${st.courier.available ? 'متاح' : 'غير متاح'}</span><input type="checkbox" class="switch" data-avail ${st.courier.available ? 'checked' : ''} aria-label="الاستعداد لاستقبال المهام"></label>
+    </div></header>`;
+  }
+  function tabbar() { const r = route(); return `<nav class="tabbar" aria-label="التنقل">${[['jobs', 'truck', 'المهام'], ['history', 'history', 'السجل'], ['account', 'user', 'الحساب']].map(([h, ic, n]) => `<a href="#${h}" ${r === h ? 'aria-current="page"' : ''}>${U.icon(ic)}${n}</a>`).join('')}</nav>`; }
+
+  /* ---------- المهام المتاحة ---------- */
+  function jobCard({ o, g }, n) {
+    const s = S[g.supplier]; const toPick = km(HOME, s.pos); const trip = km(s.pos, dropPos(o));
+    return `<article class="card job" aria-label="مهمة ${g.pkg ? g.pkg.code : o.id}">
+      <div class="legs">
+        <div class="leg"><span class="ic-wrap">${n ? `<b style="font-size:13px">${n}</b>` : U.icon('store')}</span><div><b>${s.name}</b><div class="s">${s.branch} · على بعد ${toPick} كم منك · جاهزة ${fmt.ago((Date.now() - g.job.createdAt) / 60000)}</div></div></div>
+        <div class="leg drop"><span class="ic-wrap">${U.icon('pin')}</span><div><b>حي ${o.district}</b><div class="s">يظهر العنوان الكامل بعد القبول</div></div></div>
+      </div>
+      <div class="job-foot"><div><div class="pay">${fmt.money(g.job.payout)}</div><div class="facts">${trip} كم · ${fmt.count(g.lines.reduce((a, l) => a + l.qty, 0), ['قطعة واحدة', 'قطعتان', 'قطع', 'قطعة'])}</div></div>
+        <button class="btn round primary lg" type="button" data-accept="${g.id}">اقبل المهمة</button></div>
+    </article>`;
+  }
+  function jobsView() {
+    const st = Store.get(); const a = active(); if (a) return activeView(a);
+    const list = open(); const done = st.courier.done;
+    return `<section class="shift" aria-label="ورديتك"><img src="assets/img/promo/courier-street.webp" alt="" decoding="async">
+        <div class="t"><b>${st.courier.available ? 'ورديتك شغالة في الرياض' : 'أنت غير متاح الآن'}</b><span>استلم بمسح الملصق وصورة، وسلّم برمز العميل</span></div></section>
+      <div class="earn" role="group" aria-label="اليوم"><div><span>أرباح اليوم</span><b>${fmt.money(st.courier.earnings)}</b></div><div><span>مهام مكتملة</span><b>${done.length}</b></div><div><span>تقييمك</span><b>${me.rating}</b></div></div>
+      <div><h1 class="title">مهام قريبة منك</h1><p class="sub">${st.courier.available ? `${fmt.count(list.length, ['مهمة واحدة جاهزة', 'مهمتان جاهزتان', 'مهام جاهزة', 'مهمة جاهزة'])} للاستلام الآن. أول من يقبل يأخذ المهمة.` : 'أنت غير متاح، فلا تصلك مهام جديدة.'}</p></div>
+      ${!st.courier.available ? `<div class="card"><div class="empty"><b>فعّل «متاح» لترى المهام</b><button class="btn round primary" type="button" data-go-avail>أنا متاح الآن</button></div></div>`
+        : list.length ? `<div class="split"><div style="display:grid;gap:14px;min-width:0">${list.map((x, i) => jobCard(x, i + 1)).join('')}</div>
+            <div class="map-col desk-only"><section class="card" style="padding:8px">${U.map({ pins: list.map((x, i) => ({ ...S[x.g.supplier].pos, n: i + 1 })), me: HOME, label: 'مواقع الاستلام وموقعك' })}<p class="sub small" style="padding:8px 8px 4px">الأرقام تطابق ترتيب المهام. الدائرة موقعك الآن في العليا.</p></section></div></div>` : `<div class="card"><div class="empty"><b>لا مهام جاهزة الآن</b><span>تظهر المهمة هنا عندما يضغط المورد «جاهز للاستلام».</span><a class="btn round" href="vendor.html" target="_blank" rel="noopener">افتح واجهة المورد</a></div></div>`}`;
+  }
+
+  /* ---------- المهمة الحالية ---------- */
+  function activeView({ o, g }) {
+    const s = S[g.supplier]; const a = addrOf(o); const step = { ASSIGNED: 1, AT_PICKUP: 2, IN_TRANSIT: 3, AT_DROPOFF: 4 }[g.state]; const offline = Store.get().demo.network === 'offline';
+    const mapOpts = { from: s.pos, to: dropPos(o), label: `من ${s.branch} إلى حي ${o.district}` };
+    if (g.state === 'IN_TRANSIT') mapOpts.transit = { at: g.job.transitAt, dur: POLICY.transitSec }; else mapOpts.progress = g.state === 'AT_DROPOFF' ? 1 : 0;
+    let body = '';
+    if (g.state === 'ASSIGNED') body = `<div><div class="sub small">الخطوة 1 من 4</div><h1 class="title">توجّه إلى ${s.name}</h1><p class="sub">${s.branch} · ${s.hours}</p></div>
+      <div class="legs"><div class="leg"><span class="ic-wrap">${U.icon('store')}</span><div><b>${s.branch}</b><div class="s">اطلب الحزمة ${fmt.ltr(g.pkg.code)} من موظف المستودع</div></div></div></div>
+      <button class="btn round primary block big" type="button" data-step="arrive">${U.icon('pin')}وصلت إلى الفرع</button>`;
+    else if (g.state === 'AT_PICKUP') { const sc = ui.scanned[g.id], ph = ui.photo[g.id], up = ui.uploading[g.id]; const ready = sc && ph && !up;
+      body = `<div><div class="sub small">الخطوة 2 من 4</div><h1 class="title">استلم الحزمة</h1><p class="sub">تأكد أن الملصق يطابق المهمة قبل أن تغادر.</p></div>
+      <div class="task ${sc ? 'done' : ''}">${U.icon('scan')}<div class="t"><b>امسح ملصق الحزمة</b><span>${sc ? `${fmt.ltr(g.pkg.code)} يطابق هذه المهمة` : `المتوقع ${fmt.ltr(g.pkg.code)}`}</span></div>${sc ? `<span class="ok">${U.icon('check')}تم</span>` : `<button class="btn round" type="button" data-scan="${g.id}">امسح</button>`}</div>
+      <div class="task ${ph && !up ? 'done' : ''}">${U.icon('camera')}<div class="t"><b>صوّر الحزمة في الفرع</b><span>${up ? (offline ? 'بانتظار الشبكة لرفع الصورة' : 'جارٍ الرفع…') : ph ? `رُفعت ${fmt.time(ph)}` : 'صورة واضحة للملصق والتغليف'}</span></div>${ph && !up ? `<span class="ok">${U.icon('check')}رُفعت</span>` : `<button class="btn round" type="button" data-photo="${g.id}" ${up ? 'disabled' : ''}>${up ? '…' : 'صوّر'}</button>`}</div>
+      ${offline ? `<p class="net">${U.icon('wifi')}الشبكة ضعيفة: لا نؤكد الاستلام قبل وصول الصورة إلى الخادم.</p>` : ''}
+      <button class="btn round primary block big" type="button" data-step="pickup" ${ready ? '' : 'disabled'}>تأكيد الاستلام</button>`; }
+    else if (g.state === 'IN_TRANSIT') body = `<div><div class="sub small">الخطوة 3 من 4</div><h1 class="title">في الطريق إلى حي ${o.district}</h1><p class="sub">${a ? a.street : 'العنوان الكامل في تفاصيل المهمة'}</p></div>
+      <div class="legs"><div class="leg drop"><span class="ic-wrap">${U.icon('pin')}</span><div><b>${o.customer}</b><div class="s">${a ? `العنوان الوطني ${fmt.ltr(a.nationalAddress)}` : `حي ${o.district}`} · الاتصال عبر رقم مخفي</div></div></div></div>
+      <p class="sub small">الوقت في العرض مضغوط: الرحلة دقيقة ونصف.</p>
+      <button class="btn round primary block big" type="button" data-step="drop">${U.icon('pin')}وصلت إلى العميل</button>`;
+    else if (g.state === 'AT_DROPOFF') { const ph = ui.photo[g.id + 'd'];
+      body = `<div><div class="sub small">الخطوة 4 من 4</div><h1 class="title">سلّم الحزمة</h1><p class="sub">اطلب رمز التسليم من العميل. لا تسلّم دون الرمز.</p></div>
+      <form data-form="otp" style="display:grid;gap:12px"><label class="label" for="otp0" style="text-align:center">رمز التسليم من 4 أرقام</label>
+        <div class="otp-in">${[0, 1, 2, 3].map((i) => `<input id="otp${i}" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="الرقم ${i + 1}" value="${ui.otp[i] || ''}">`).join('')}</div>
+        <button class="link" type="button" data-reveal style="justify-self:center">${ui.showOtp ? `الرمز لدى العميل: ${fmt.ltr(g.job.otp)}` : 'اعرض الرمز (للعرض فقط)'}</button>
+        <div class="task ${ph ? 'done' : ''}">${U.icon('camera')}<div class="t"><b>صورة التسليم</b><span>${ph ? `رُفعت ${fmt.time(ph)}` : 'الحزمة عند الباب أو بيد العميل'}</span></div>${ph ? `<span class="ok">${U.icon('check')}رُفعت</span>` : `<button class="btn round" type="button" data-photo="${g.id}d">صوّر</button>`}</div>
+        <button class="btn round primary block big" ${ph ? '' : 'disabled'}>تأكيد التسليم</button></form>`; }
+    return `<div class="split"><div class="active">
+        <div class="stepper-h" aria-hidden="true">${[1, 2, 3, 4].map((i) => `<span class="${i <= step ? 'on' : ''}"></span>`).join('')}</div>
+        <section class="card active">${body}</section>
+        <section class="card"><header><h2>الحزمة</h2><span class="sub small">${fmt.ltr(o.id)}</span></header>
+          ${g.lines.map((l) => `<div class="hist-row">${U.thumb(l.thumb, 'sm')}<div class="t"><b style="font-weight:500">${l.name}${l.qty > 1 ? ` × ${l.qty}` : ''}</b><div class="sub small">${l.oem ? fmt.ltr(l.oem) : D.brands[l.brand].name}</div></div></div>`).join('')}
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:12px;border-top:1px solid var(--rule)"><span class="sub">أجرة المهمة</span><b>${fmt.money(g.job.payout)}</b></div></section>
+        <button class="btn round block" type="button" data-problem="${g.id}">${U.icon('alert')}أبلغ عن مشكلة</button>
+      </div>
+      <div class="map-col"><section class="card" style="padding:8px">${U.map(mapOpts)}</section></div></div>`;
+  }
+
+  /* ---------- السجل والحساب ---------- */
+  function historyView() {
+    const st = Store.get(); const done = st.courier.done;
+    return `<div><h1 class="title">سجل اليوم</h1><p class="sub">${fmt.count(done.length, ['مهمة واحدة', 'مهمتان', 'مهام', 'مهمة'])} · ${fmt.money(st.courier.earnings)}</p></div>
+      <section class="card">${done.length ? done.map((d) => `<div class="hist-row"><span class="thumb sm">${U.icon('check')}</span><div class="t"><b>${S[d.supplier].branch} ← حي ${d.district}</b><div class="sub small">سُلّمت ${fmt.time(d.at)} برمز التسليم وصورة</div></div>${fmt.money(d.payout)}</div>`).join('') : '<div class="empty">لم تكمل مهمة بعد اليوم.</div>'}</section>`;
+  }
+  function accountView() {
+    const st = Store.get();
+    return `<div><h1 class="title">${me.name}</h1><p class="sub">${me.vehicle} · ${me.plate} · تقييم ${me.rating}</p></div>
+      <section class="card"><header><h2>الأذونات</h2></header><div class="sub small" style="display:grid;gap:8px"><span>الكاميرا: عند تصوير الدليل فقط.</span><span>الموقع: أثناء المهمة النشطة فقط، لا تتبع دائم.</span></div></section>
+      <section class="card"><header><h2>المظهر</h2></header>${U.themeSeg()}</section>
+      <section class="card" style="background:var(--raised);border-style:dashed"><header><h2>أدوات العرض</h2></header>
+        <label class="check"><input type="checkbox" class="switch" data-net ${st.demo.network === 'offline' ? 'checked' : ''}><span><b>شبكة ضعيفة</b><span class="sub small" style="display:block">صورة الاستلام تبقى بانتظار الرفع، ولا يتأكد الاستلام قبلها</span></span></label>
+        <a class="link" href="index.html" style="display:inline-block;margin-top:14px">كل الواجهات</a></section>`;
+  }
+
+  function page() { const r = route(); const body = r === 'history' ? historyView() : r === 'account' ? accountView() : jobsView(); return header() + `<main class="k-main" id="main">${body}</main>` + tabbar(); }
+  const render = U.renderer(root, page);
+  window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); });
+  Store.on(render); render();
+
+  function photo(key) {
+    ui.uploading[key] = true; render();
+    const finish = () => { if (Store.get().demo.network === 'offline') { setTimeout(finish, 1500); return; } ui.photo[key] = Date.now(); delete ui.uploading[key]; render(); };
+    setTimeout(finish, 900);
+  }
+  root.addEventListener('click', (e) => {
+    const t = e.target.closest('button, [data-accept]'); if (!t) return; const d = t.dataset; const cur = active();
+    if (d.accept) { const r = A.accept(d.accept, CID); if (r === 'lost') U.toast('سبقك مندوب آخر لهذه المهمة'); else if (r === 'gone') U.toast('لم تعد المهمة متاحة'); else U.toast('المهمة لك. توجه إلى الفرع'); }
+    else if (d.scan) { ui.scanned[d.scan] = true; render(); U.toast('الملصق يطابق المهمة'); }
+    else if (d.photo) { if (d.photo.endsWith('d')) { ui.photo[d.photo] = Date.now(); render(); } else photo(d.photo); }
+    else if (d.step === 'arrive') A.arrivePickup(cur.g.id);
+    else if (d.step === 'pickup') { A.pickup(cur.g.id); U.toast('استلمت الحزمة. العميل يتابعك الآن'); }
+    else if (d.step === 'drop') A.arriveDrop(cur.g.id);
+    else if (d.reveal !== undefined) { ui.showOtp = !ui.showOtp; render(); }
+    else if (d.goAvail !== undefined) A.setAvailable(true);
+    else if (d.problem) problemSheet(d.problem);
+  });
+  root.addEventListener('change', (e) => { if (e.target.dataset.avail !== undefined) A.setAvailable(e.target.checked); if (e.target.dataset.net !== undefined) A.setDemo('network', e.target.checked ? 'offline' : 'online'); });
+  root.addEventListener('input', (e) => {
+    const m = e.target.id.match(/^otp(\d)$/); if (!m) return; const i = Number(m[1]); e.target.value = e.target.value.replace(/\D/g, '').slice(-1);
+    const arr = [0, 1, 2, 3].map((k) => (root.querySelector('#otp' + k) || {}).value || ''); ui.otp = arr.join('');
+    if (e.target.value && i < 3) root.querySelector('#otp' + (i + 1)).focus();
+  });
+  root.addEventListener('submit', (e) => {
+    if (e.target.dataset.form !== 'otp') return; e.preventDefault(); const cur = active(); const r = A.deliver(cur.g.id, ui.otp);
+    if (r === 'otp') { U.toast('الرمز غير صحيح. اطلبه من العميل مرة أخرى'); } else if (r === 'ok') { ui.otp = ''; ui.showOtp = false; U.toast('تم التسليم. أُضيفت الأجرة لأرباحك'); }
+  });
+  function problemSheet(gid) {
+    const d = U.dialog(`<div class="sheet-head"><h2>ما المشكلة؟</h2><button class="btn ghost icon" data-close aria-label="إغلاق">${U.icon('x')}</button></div>
+      <div class="sheet-body" style="gap:8px">${['العميل لا يرد', 'العنوان غير صحيح', 'الحزمة تالفة', 'الفرع مغلق'].map((k) => `<button class="btn round block lg" type="button" data-kind="${k}">${k}</button>`).join('')}
+      <p class="sub small">يصل البلاغ للدعم مع موقعك ووقت الخادم. لا تُلغى المهمة تلقائيًا.</p></div>`);
+    d.addEventListener('click', (e) => { const b = e.target.closest('[data-kind]'); if (!b) return; A.exception(gid, b.dataset.kind); d.close(); U.toast('وصل البلاغ إلى الدعم'); });
+  }
+})();
+</script>
+</body>
+</html>

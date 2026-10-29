@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>عرض صامولة المتزامن</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/base.css">
+<style>
+  /* ثلاثة هواتف جنبًا إلى جنب على بيانات واحدة: العميل والمورد والمندوب. للعروض التقديمية على شاشة عريضة. */
+  body { background: var(--ground); }
+  .bar { display: flex; align-items: center; gap: 16px; padding: calc(12px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 12px max(16px, env(safe-area-inset-left, 0px)); flex-wrap: wrap; }
+  .bar h1 { font-size: 18px; font-weight: 600; }
+  .bar .sp { flex: 1; }
+  .stage { display: flex; gap: 20px; justify-content: center; align-items: flex-start; padding: 8px 16px 24px; }
+  .device { display: grid; gap: 10px; justify-items: center; }
+  .device .cap { display: flex; gap: 8px; align-items: center; font-weight: 600; }
+  .device .cap svg { width: 18px; height: 18px; }
+  .phone { width: calc(390px * var(--k)); height: calc(800px * var(--k)); border-radius: calc(36px * var(--k)); background: #16181a; box-shadow: 0 0 0 1px var(--border); padding: calc(10px * var(--k)); }
+  .phone .screen { width: 390px; height: 800px; border-radius: 28px; overflow: hidden; transform: scale(var(--k)); transform-origin: top right; background: var(--surface); }
+  .phone iframe { width: 390px; height: 800px; border: 0; display: block; }
+  .narrow { display: none; max-width: 520px; margin: 24px auto; padding: 0 16px; }
+  @media (max-width: 1080px) { .stage { display: none; } .narrow { display: grid; gap: 12px; } }
+</style>
+</head>
+<body>
+<header class="bar"><a class="brand" href="index.html" aria-label="صامولة، كل الواجهات"></a><h1>العرض المتزامن</h1><span class="small muted">ما تفعله في هاتف يظهر في الآخرين خلال ثانية</span><span class="sp"></span>
+  <a class="btn round" href="admin.html" target="_blank" rel="noopener">لوحة الإدارة</a><button class="btn round" type="button" id="reset">أعد ضبط العرض</button></header>
+<main>
+  <div class="stage" id="stage"></div>
+  <div class="narrow"><p>العرض المتزامن يحتاج شاشة أعرض من 1080 بكسل. افتح كل واجهة في تبويب:</p>
+    <a class="btn round block lg" href="customer.html">العميل</a><a class="btn round block lg" href="vendor.html">المورد</a><a class="btn round block lg" href="courier.html">المندوب</a></div>
+</main>
+<script src="assets/data.js"></script>
+<script src="assets/store.js"></script>
+<script src="assets/ui.js"></script>
+<script>
+(function () {
+  const U = UI; document.querySelector('.bar .brand').innerHTML = `${U.mark()}<span>صامولة</span>`;
+  const devices = [['customer.html#cart', 'car', 'العميل'], ['vendor.html', 'store', 'المورد · الأفق، السلي'], ['courier.html', 'truck', 'المندوب · خالد']];
+  const stage = document.getElementById('stage');
+  stage.innerHTML = devices.map(([src, ic, cap]) => `<div class="device"><span class="cap">${U.icon(ic)}${cap}</span><div class="phone"><div class="screen"><iframe src="${src}" title="${cap}" loading="lazy"></iframe></div></div></div>`).join('');
+  function fit() { const k = Math.min(1, (window.innerHeight - 120) / 820, (window.innerWidth - 120) / (3 * 410)); document.documentElement.style.setProperty('--k', Math.max(0.55, k).toFixed(3)); }
+  fit(); window.addEventListener('resize', fit);
+  document.getElementById('reset').addEventListener('click', () => { Store.A.reset(); U.toast('أُعيد ضبط العرض'); });
+})();
+</script>
+</body>
+</html>

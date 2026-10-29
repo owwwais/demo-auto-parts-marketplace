@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>صامولة للعملاء</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/base.css">
+<style>
+  /* تطبيق العميل: جوال أولًا، ويتحول على الشاشة العريضة إلى متجر بعمودين.
+     بطاقات ناعمة 16px وأزرار حبيّة؛ اللون البترولي على التوافق والإجراء فقط. */
+  body { background: var(--ground); }
+  .c-top { position: sticky; top: 0; z-index: 30; background: var(--ground); padding: calc(10px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px)); }
+  .c-top-in { max-width: 1180px; margin: 0 auto; display: flex; align-items: center; gap: 16px; }
+  .c-top .addr { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; min-width: 0; background: none; border: 0; padding: 0; }
+  .c-top .addr b { color: var(--text); font-weight: 500; }
+  .c-top .addr svg { width: 15px; height: 15px; flex: none; }
+  .c-top .spacer { flex: 1; }
+  .c-top .desk { display: none; }
+  .cart-btn { position: relative; }
+  .badge { position: absolute; top: -4px; inset-inline-start: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 11px; font-weight: 600; display: grid; place-items: center; }
+  .searchbar { display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 16px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); flex: 1; min-width: 0; }
+  .searchbar svg { width: 18px; height: 18px; color: var(--muted); flex: none; }
+  .searchbar input { border: 0; outline: 0; background: transparent; flex: 1; min-width: 0; height: 100%; font-size: 15px; }
+  .searchbar input::placeholder { color: var(--faint); }
+  .searchbar:focus-within { border-color: var(--text); }
+
+  .c-main { max-width: 1180px; margin: 0 auto; padding: 4px max(16px, env(safe-area-inset-right, 0px)) calc(96px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); display: grid; gap: 16px; }
+  .c-main > * { min-width: 0; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px; min-width: 0; }
+  .card > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+  .card h2, .sec h2 { font-size: 16px; font-weight: 600; line-height: 1.35; }
+  .sec { display: grid; gap: 12px; }
+  .sec > header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  h1.title { font-size: 22px; font-weight: 600; line-height: 1.3; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); }
+
+  /* السيارة */
+  .vehicle { display: flex; align-items: center; gap: 14px; }
+  .vehicle .car { width: 52px; height: 52px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; flex: none; }
+  .vehicle .car svg { width: 28px; height: 28px; }
+  .vehicle .name { font-size: 17px; font-weight: 600; line-height: 1.3; }
+  .vehicle .meta { color: var(--muted); font-size: 13px; line-height: 1.6; }
+
+  /* إعلانات الرئيسية: شريحة تملأ العرض وتُسحب بالإصبع، والنقاط تحتها */
+  .promo { display: grid; gap: 10px; }
+  .promo-track { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; border-radius: 18px; overscroll-behavior-x: contain; }
+  .promo-track::-webkit-scrollbar { display: none; }
+  .slide { position: relative; flex: 0 0 100%; scroll-snap-align: start; aspect-ratio: 16 / 9; min-height: 196px; border-radius: 18px; overflow: hidden; background: #15181a; color: #fff; isolation: isolate; }
+  .slide img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; transition: transform 6s var(--ease); }
+  .slide::before { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(to left, rgba(10, 12, 13, 0.78) 0%, rgba(10, 12, 13, 0.5) 45%, rgba(10, 12, 13, 0) 78%); }
+  .slide.is-on img { transform: scale(1.04); }
+  .slide .s-copy { position: absolute; inset-block: 0; inset-inline-start: 0; width: min(74%, 400px); padding: 18px 20px; display: grid; align-content: center; justify-items: start; gap: 6px; }
+  .slide .kick { font-size: 12.5px; font-weight: 600; color: #9fe3f0; }
+  .slide h3 { font-size: 20px; line-height: 1.25; font-weight: 700; letter-spacing: -0.01em; }
+  .slide p { font-size: 13px; line-height: 1.5; color: rgba(255, 255, 255, 0.86); }
+  .slide .go { margin-top: 6px; height: 36px; padding: 0 16px; border-radius: 999px; background: #fff; color: #111; font-weight: 600; font-size: 13.5px; display: inline-flex; align-items: center; gap: 6px; }
+  .slide .go svg { width: 15px; height: 15px; }
+  .slide .go:hover { background: #e9edf0; }
+  .dots { display: flex; justify-content: center; gap: 2px; }
+  .dots button { width: 22px; height: 22px; border: 0; background: none; padding: 0; display: grid; place-items: center; }
+  .dots button::after { content: ""; width: 6px; height: 6px; border-radius: 999px; background: var(--control); transition: width 220ms var(--ease), background-color 220ms ease; }
+  .dots button[aria-current="true"]::after { width: 18px; background: var(--text); }
+
+  /* شريط الوعود: ثلاث حقائق قصيرة تحت الإعلان */
+  .perks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .perk { display: grid; gap: 4px; justify-items: center; text-align: center; padding: 12px 8px; border-radius: 14px; background: var(--surface); border: 1px solid var(--border); font-size: 12px; line-height: 1.35; color: var(--muted); }
+  .perk b { color: var(--text); font-size: 13px; font-weight: 600; }
+  .perk svg { width: 20px; height: 20px; color: var(--accent); }
+  .strip { display: grid; gap: 16px; }
+  .strip > .card { align-self: stretch; display: grid; align-content: center; }
+
+  /* التصنيفات: شبكة صور ثابتة بلا تمرير جانبي */
+  .cats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .cat { display: grid; gap: 0; border-radius: 14px; background: var(--surface); border: 1px solid var(--border); overflow: hidden; font-size: 12.5px; font-weight: 500; text-align: center; line-height: 1.3; transition: border-color 150ms ease, transform 150ms var(--ease); }
+  .cat .thumb { width: 100%; height: auto; aspect-ratio: 4 / 3; border-radius: 0; }
+  .cat > span:last-child { padding: 8px 6px 10px; min-height: 40px; display: grid; place-items: center; }
+  .cat:hover { border-color: var(--control); }
+  .cat:active { transform: scale(0.98); }
+  .cat[aria-pressed="true"] { border-color: var(--text); box-shadow: 0 0 0 1px var(--text); }
+
+  /* بطاقات المنتجات بالصور */
+  .pgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .pcard { display: grid; grid-template-rows: auto 1fr; border-radius: 14px; background: var(--surface); border: 1px solid var(--border); overflow: hidden; min-width: 0; transition: border-color 150ms ease, transform 150ms var(--ease); }
+  .pcard:hover { border-color: var(--control); }
+  .pcard:active { transform: scale(0.985); }
+  .pcard .thumb { width: 100%; height: auto; aspect-ratio: 1 / 1; border-radius: 0; }
+  .pcard .body { display: grid; gap: 6px; padding: 10px 12px 12px; align-content: start; min-width: 0; }
+  .pcard .nm { font-weight: 600; line-height: 1.35; font-size: 14px; }
+  .pcard .ref { color: var(--muted); font-size: 12px; }
+  .pcard .meta { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-top: 2px; }
+  .pcard .meta .money { font-weight: 700; font-size: 15px; }
+  .pcard .meta .n { font-size: 12px; color: var(--muted); }
+  .pcard .fitp { justify-self: start; }
+
+  /* بطاقة الصورة: لا تدفع قبل الحجز */
+  .how-card { padding: 0; overflow: hidden; }
+  .how-card > img { width: 100%; aspect-ratio: 16 / 7; object-fit: cover; display: block; }
+  .how-card .in { padding: 16px; }
+
+  /* صفوف القطع */
+  .plist { display: grid; }
+  .prow { display: flex; gap: 12px; align-items: center; padding: 12px 0; min-width: 0; }
+  .prow + .prow { border-top: 1px solid var(--rule); }
+  .prow .info { flex: 1; min-width: 0; display: grid; gap: 4px; }
+  .prow .nm { font-weight: 500; line-height: 1.35; }
+  .prow .line2 { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; color: var(--muted); font-size: 13px; }
+  .prow .foot { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .prow .price { flex: none; white-space: nowrap; }
+  .prow .price .from { font-size: 12px; color: var(--muted); }
+  .prow .price .money { font-weight: 700; font-size: 15px; color: var(--text); }
+  .prow .thumb { width: 64px; height: 64px; border-radius: 10px; }
+
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--control); background: var(--surface); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .chip[aria-pressed="true"] { background: var(--text); color: var(--surface); border-color: transparent; }
+  .chip svg { width: 15px; height: 15px; }
+
+  /* صفحة القطعة */
+  .crumbs { display: none; gap: 6px; color: var(--muted); font-size: 13px; align-items: center; flex-wrap: wrap; }
+  .crumbs a:hover { color: var(--text); }
+  .crumbs svg { width: 14px; height: 14px; }
+  .part-page { display: grid; gap: 20px; }
+  .part-head { display: grid; gap: 14px; }
+  .part-head .thumb.lg { aspect-ratio: 4 / 3; }
+  .part-head .refs { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .copy { height: 28px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--control); background: var(--surface); display: inline-flex; gap: 6px; align-items: center; font-size: 13px; }
+  .copy svg { width: 14px; height: 14px; }
+  .fit { display: grid; gap: 8px; padding: 14px; border-radius: 12px; background: var(--raised); }
+  .fit .src { font-size: 13px; color: var(--muted); }
+  .offers { display: grid; gap: 10px; }
+  .offer { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 16px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+  .offer.best { border-color: var(--text); box-shadow: 0 0 0 1px var(--text); }
+  .offer .who { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-weight: 500; }
+  .offer .facts { grid-column: 1 / -1; display: flex; gap: 6px 14px; flex-wrap: wrap; color: var(--muted); font-size: 13px; }
+  .offer .facts span { display: inline-flex; align-items: center; gap: 5px; }
+  .offer .facts svg { width: 14px; height: 14px; }
+  .offer .facts .warn { color: var(--warning); }
+  .offer .buy { display: grid; justify-items: end; gap: 6px; align-content: start; }
+  .offer .buy .money { font-size: 18px; font-weight: 600; }
+  .best-tag { font-size: 12px; font-weight: 600; color: var(--accent); }
+
+  /* السلة والدفع */
+  .grp { display: grid; gap: 4px; }
+  .grp-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+  .grp-head .s { font-weight: 600; }
+  .grp-head .m { color: var(--muted); font-size: 13px; }
+  .line { display: flex; gap: 12px; align-items: center; padding: 10px 0; }
+  .line + .line { border-top: 1px solid var(--rule); }
+  .line .info { flex: 1; min-width: 0; display: grid; gap: 3px; }
+  .stepper { display: inline-flex; align-items: center; border: 1px solid var(--control); border-radius: 999px; height: 34px; }
+  .stepper button { width: 34px; height: 32px; border: 0; background: none; display: grid; place-items: center; border-radius: 999px; }
+  .stepper button svg { width: 15px; height: 15px; }
+  .stepper span { min-width: 22px; text-align: center; font-weight: 600; }
+  .why { font-size: 12.5px; color: var(--warning); display: flex; gap: 5px; align-items: flex-start; }
+  .why svg { width: 14px; height: 14px; flex: none; margin-top: 2px; }
+  .addr-opt { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer; }
+  .addr-opt input { margin: 3px 0 0; accent-color: var(--text); width: 18px; height: 18px; flex: none; }
+  .addr-opt[aria-disabled="true"] { opacity: 0.6; cursor: not-allowed; }
+  .addr-opt:has(input:checked) { border-color: var(--text); }
+  .sum .kv { padding: 5px 0; }
+  .sum .total { font-size: 17px; font-weight: 600; border-top: 1px solid var(--rule); margin-top: 6px; padding-top: 12px; }
+  .pay-opts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .pay-opt { height: 48px; border-radius: 12px; border: 1px solid var(--control); background: var(--surface); font-weight: 600; }
+  .pay-opt[aria-pressed="true"] { border-color: var(--text); box-shadow: 0 0 0 1px var(--text); }
+  .gstate { display: grid; gap: 8px; padding: 12px; border-radius: 12px; background: var(--raised); }
+  .gstate .row1 { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .gstate .acts { display: flex; gap: 8px; flex-wrap: wrap; }
+  .demo-hint { font-size: 12.5px; color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+  /* التتبع */
+  .otp { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-radius: 14px; background: var(--text); color: var(--surface); }
+  .otp .digits { font-family: var(--mono); font-size: 26px; font-weight: 500; letter-spacing: 0.3em; direction: ltr; }
+  .otp .l { font-size: 13px; opacity: 0.8; }
+  .steps { display: grid; gap: 0; }
+  .step { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 6px 0; position: relative; }
+  .step .b { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--control); background: var(--surface); margin: 5px 4px 0; position: relative; z-index: 1; }
+  .step.done .b { background: var(--text); border-color: var(--text); }
+  .step.now .b { border-color: var(--accent); background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+  .step:not(:last-child)::after { content: ""; position: absolute; inset-inline-start: 9px; top: 20px; bottom: -6px; width: 2px; background: var(--rule); }
+  .step.done:not(:last-child)::after { background: var(--text); }
+  .step .t { font-size: 12.5px; color: var(--muted); }
+  .step.todo { color: var(--muted); }
+  .courier-card { display: flex; gap: 12px; align-items: center; }
+  .tl { display: grid; gap: 10px; }
+  .tl li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 10px; font-size: 13.5px; }
+  .tl .when { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .tl .who { font-weight: 500; }
+
+  /* شريط التنقل السفلي */
+  .tabbar { position: fixed; inset: auto 0 0 0; z-index: 40; background: var(--surface); border-top: 1px solid var(--border); display: grid; grid-template-columns: repeat(5, 1fr);
+    padding: 6px max(8px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px)); }
+  .tabbar a { display: grid; justify-items: center; gap: 3px; padding: 6px 0; color: var(--muted); font-size: 11.5px; position: relative; min-height: 48px; }
+  .tabbar a svg { width: 22px; height: 22px; }
+  .tabbar a[aria-current="page"] { color: var(--text); font-weight: 600; }
+  .tabbar .badge { top: 0; inset-inline-start: calc(50% - 22px); }
+
+  .two { display: grid; gap: 16px; }
+  .order-row { display: flex; gap: 12px; align-items: center; padding: 14px 0; }
+  .order-row + .order-row { border-top: 1px solid var(--rule); }
+  .order-row .info { flex: 1; min-width: 0; display: grid; gap: 3px; }
+  .garage-row { display: flex; gap: 12px; align-items: center; padding: 12px 0; }
+  .garage-row + .garage-row { border-top: 1px solid var(--rule); }
+  .garage-row .info { flex: 1; min-width: 0; }
+  .vin-result { display: grid; gap: 6px; padding: 12px; border-radius: 12px; background: var(--raised); font-size: 13.5px; }
+
+  @media (min-width: 960px) {
+    .c-top { padding-top: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--border); background: var(--surface); margin-bottom: 20px; }
+    .c-top .desk { display: flex; }
+    .mob { display: none !important; }
+    .c-top .brand { font-size: 19px; }
+    .tabbar { display: none; }
+    .c-main { padding-bottom: 48px; gap: 20px; }
+    .crumbs { display: flex; }
+    .home-grid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 20px; align-items: start; }
+    .cats { grid-template-columns: repeat(9, minmax(0, 1fr)); }
+    .pgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .slide { flex-basis: calc(50% - 6px); aspect-ratio: 16 / 8; }
+    .slide h3 { font-size: 24px; }
+    .strip { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px; }
+    .perks { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .perk { justify-items: start; text-align: start; padding: 14px 16px; font-size: 13px; align-content: center; }
+    .part-page { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 24px; align-items: start; }
+    .part-page .part-side { position: sticky; top: 96px; }
+    .two { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 20px; align-items: start; }
+    .two .stick { position: sticky; top: 96px; }
+    .search-page { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 24px; align-items: start; }
+    .search-page .filters { position: sticky; top: 96px; }
+    h1.title { font-size: 24px; }
+  }
+  @media (max-width: 959px) {
+    .search-page { display: grid; gap: 14px; }
+    .search-page .filters .chips, .part-page .seg { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: -16px; padding-inline: 16px; scroll-padding-inline: 16px; max-width: none; }
+    .search-page .filters .chips::-webkit-scrollbar { display: none; }
+    .part-page .seg { background: none; padding-block: 0; gap: 6px; }
+    .part-page .seg button { background: var(--raised); height: 34px; border-radius: 999px; padding: 0 14px; }
+    .part-page .seg button[aria-pressed="true"] { background: var(--text); color: var(--surface); box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="assets/data.js"></script>
+<script src="assets/store.js"></script>
+<script src="assets/ui.js"></script>
+<script>
+(function () {
+  const { A, fmt, V, P, S, C, D, POLICY } = Store; const U = UI; const me = D.customer;
+  const root = document.getElementById('app');
+  const PREF_KEY = 'samoola-customer';
+  let prefs = { vehicle: 'camry-2021', address: 'a1' };
+  try { prefs = { ...prefs, ...JSON.parse(localStorage.getItem(PREF_KEY) || '{}') }; } catch (e) { /* لا تخزين */ }
+  const savePrefs = () => { try { localStorage.setItem(PREF_KEY, JSON.stringify(prefs)); } catch (e) { /* لا تخزين */ } };
+  const ui = { q: '', onlyFit: true, tier: 'all', sort: 'best', pay: 'مدى', focusSearch: false, tlOpen: false, slide: 0 };
+
+  /* ---------- مساعدات ---------- */
+  const veh = (id) => V[id]; const vname = (id) => { const v = V[id]; return `${v.make} ${v.model} ${v.year}`; };
+  const catName = (id) => (D.categories.find((c) => c.id === id) || {}).name || '';
+  const addr = () => me.addresses.find((a) => a.id === prefs.address) || me.addresses[0];
+  const etaTxt = (e) => `\u2066${e.from}–${e.to}\u2069 دقيقة`;
+  const norm = (s) => String(s).toLowerCase().replace(/[ً-ْ]/g, '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/\s+/g, ' ').trim();
+  const normRef = (s) => String(s).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const offersOf = (pid) => Store.offersFor(pid);
+  const minPrice = (pid) => Math.min(...offersOf(pid).map((o) => o.price));
+  const cartCount = () => Store.get().cart.reduce((a, c) => a + c.qty, 0);
+  const myOrders = () => Store.get().orders.filter((o) => o.live || o.mine);
+  const offerCount = (n) => fmt.count(n, ['عرض واحد', 'عرضان', 'عروض', 'عرضًا']);
+  function score(o, all) {
+    const minP = Math.min(...all.map((x) => x.price)); const minE = Math.min(...all.map((x) => Store.eta(x.supplier).from));
+    return o.price / minP + (Store.eta(o.supplier).from / minE) * 0.5 + (Store.verifyReasons(o).length ? 0.3 : 0) + (D.brands[o.brand].tier === 'eco' ? 0.25 : 0);
+  }
+  function sortOffers(list) {
+    const l = [...list];
+    if (ui.sort === 'price') l.sort((a, b) => a.price - b.price);
+    else if (ui.sort === 'fast') l.sort((a, b) => Store.eta(a.supplier).from - Store.eta(b.supplier).from || a.price - b.price);
+    else if (ui.sort === 'oe') l.sort((a, b) => ['oe', 'oem', 'am', 'eco'].indexOf(D.brands[a.brand].tier) - ['oe', 'oem', 'am', 'eco'].indexOf(D.brands[b.brand].tier) || a.price - b.price);
+    else l.sort((a, b) => score(a, list) - score(b, list));
+    return l;
+  }
+  function searchParts(q, cat) {
+    const nq = norm(q), rq = normRef(q);
+    return D.parts.filter((p) => {
+      if (cat && p.cat !== cat) return false; if (!q) return true;
+      const hay = norm([p.name, p.spec, catName(p.cat), ...p.fits.map((f) => `${V[f.v].make} ${V[f.v].model}`)].join(' '));
+      return nq.split(' ').every((w) => hay.includes(w)) || (rq.length >= 4 && p.oem.some((o) => normRef(o).includes(rq)));
+    });
+  }
+  const fitOrder = { confirmed: 0, likely: 1, unknown: 2 };
+
+  /* ---------- التوجيه بروابط مرجعية بسيطة ---------- */
+  function route() {
+    const h = decodeURIComponent(location.hash.slice(1));
+    if (h.startsWith('part-')) return { view: 'part', id: h.slice(5) };
+    if (h.startsWith('order-')) return { view: 'order', id: h.slice(6) };
+    if (h.startsWith('cat-')) return { view: 'search', cat: h.slice(4) };
+    return { view: ['home', 'search', 'cart', 'orders', 'account'].includes(h) ? h : 'home' };
+  }
+  const go = (h) => { if (location.hash === '#' + h) render(); else location.hash = h; };
+
+  /* ---------- الهيكل ---------- */
+  function header(r) {
+    const n = cartCount(); const a = addr();
+    return `<header class="c-top"><div class="c-top-in">
+      <a class="brand" href="#home" aria-label="صامولة، الرئيسية">${U.mark()}<span>صامولة</span></a>
+      <button class="addr mob" type="button" data-act="address" style="margin-inline-start:auto">${U.icon('pin')}<span>التوصيل إلى <b>${a.district}</b></span>${U.icon('down')}</button>
+      <button class="btn round desk" type="button" data-act="vehicle" style="height:40px">${U.icon('car')}${vname(prefs.vehicle)}${U.icon('down')}</button>
+      <form class="searchbar desk" role="search" data-form="search">${U.icon('search')}<label class="sr" for="q-top">ابحث عن قطعة</label><input id="q-top" name="q" autocomplete="off" placeholder="اسم القطعة أو رقمها، مثل 04152-YZZA6" value="${U.esc(ui.q)}"></form>
+      <nav class="desk" style="gap:4px;align-items:center">
+        <button class="addr" type="button" data-act="address" style="margin-inline-end:8px">${U.icon('pin')}<span><b>${a.district}</b></span></button>
+        <a class="btn ghost" href="#orders" ${r.view === 'orders' ? 'aria-current="page"' : ''}>طلباتي</a>
+        <a class="btn ghost" href="#account">حسابي</a>
+        <a class="btn round cart-btn" href="#cart" style="height:40px" aria-label="السلة، ${n} قطعة">${U.icon('cart')}السلة${n ? `<span class="badge">${n}</span>` : ''}</a>
+      </nav>
+    </div></header>`;
+  }
+  function tabbar(r) {
+    const n = cartCount(); const tab = (h, ic, t, extra = '') => `<a href="#${h}" ${r.view === h || (h === 'orders' && r.view === 'order') || (h === 'search' && r.view === 'part') ? 'aria-current="page"' : ''}>${U.icon(ic)}${t}${extra}</a>`;
+    return `<nav class="tabbar" aria-label="التنقل الرئيسي">${tab('home', 'home', 'الرئيسية')}${tab('search', 'search', 'البحث')}${tab('cart', 'cart', 'السلة', n ? `<span class="badge">${n}</span>` : '')}${tab('orders', 'box', 'طلباتي')}${tab('account', 'user', 'حسابي')}</nav>`;
+  }
+
+  /* ---------- الرئيسية ---------- */
+  function vehicleCard() {
+    const v = veh(prefs.vehicle); const g = me.vehicles.find((x) => x.vehicle === v.id);
+    return `<section class="card" aria-labelledby="vh"><div class="vehicle">
+      <span class="car" aria-hidden="true">${U.icon('car')}</span>
+      <div style="flex:1;min-width:0"><h2 id="vh" class="name">${vname(v.id)}</h2>
+        <div class="meta">${[v.engine, v.engineCode ? fmt.ltr(v.engineCode) : 'المحرك غير محدد', g ? fmt.ltr(g.vinMasked) : ''].filter(Boolean).join(' · ')}</div></div>
+      <button class="btn round" type="button" data-act="vehicle">تغيير</button></div>
+      ${v.engineCode ? '' : `<p class="notice warn" style="margin-top:12px">${U.icon('alert')}<span>بدون رمز المحرك يبقى توافق بعض القطع «محتملًا». أضف رقم الهيكل من حسابك.</span></p>`}
+    </section>`;
+  }
+  function activeOrderCard() {
+    const o = myOrders().find((x) => x.live && !['DELIVERED', 'CANCELLED'].includes(Store.orderStatus(x))); if (!o) return '';
+    const st = Store.orderStatus(o); const tone = Store.tone(st);
+    const verifying = o.groups.find((g) => g.state === 'VERIFYING'); const held = o.groups.filter((g) => g.state === 'HELD');
+    let line = '';
+    if (st === 'VERIFYING' && verifying) line = `بانتظار تأكيد ${S[verifying.supplier].name} · ${U.countdown(verifying.verify.deadline)}`;
+    else if (st === 'READY_TO_PAY') line = `كل القطع محجوزة لك · ادفع قبل ${U.countdown(Math.min(...held.map((g) => g.hold.until)))}`;
+    else if (st === 'ACTION_REQUIRED') line = 'قطعة لم تُحجز وتحتاج قرارك';
+    else line = o.groups.map((g) => `${S[g.supplier].name}: ${Store.GROUP_LABEL[g.state]}`).join(' · ');
+    return `<a class="card" href="#order-${o.id}" style="display:flex;gap:14px;align-items:center">
+      <span class="thumb sm" style="background:var(--accent-soft);color:var(--accent)">${U.icon('box')}</span>
+      <div style="flex:1;min-width:0;display:grid;gap:3px"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b>طلبك ${fmt.ltr(o.id)}</b>${U.pill(Store.ORDER_LABEL[st], tone)}</div><div class="sub small">${line}</div></div>
+      ${U.icon('fwd')}</a>`;
+  }
+  function partRow(p) {
+    const offers = offersOf(p.id); const f = Store.fitment(p.id, prefs.vehicle);
+    const fastest = Math.min(...offers.map((o) => Store.eta(o.supplier).from));
+    return `<a class="prow" href="#part-${p.id}">${U.thumb(p.thumb)}
+      <div class="info"><div class="nm">${p.name}</div>
+        <div class="line2">${p.oem[0] ? fmt.ltr(p.oem[0]) : `<span>${p.spec}</span>`}${U.fitPill(f.status)}</div>
+        <div class="foot"><span>${offerCount(offers.length)} · خلال ${fastest} دقيقة</span><span class="price"><span class="from">من </span>${fmt.money(minPrice(p.id))}</span></div></div></a>`;
+  }
+  function partCard(p) {
+    const f = Store.fitment(p.id, prefs.vehicle); const n = offersOf(p.id).length;
+    return `<a class="pcard" href="#part-${p.id}">${U.thumb(p.thumb)}
+      <div class="body"><div class="nm">${p.name}</div>
+        <div class="ref">${p.oem[0] ? fmt.ltr(p.oem[0]) : p.spec}</div>
+        <span class="fitp">${U.fitPill(f.status)}</span>
+        <div class="meta"><span><span class="n">من </span>${fmt.money(minPrice(p.id))}</span><span class="n">${offerCount(n)}</span></div></div></a>`;
+  }
+
+  /* إعلانات الرئيسية: كل رقم فيها محسوب من بيانات العرض لا مكتوب باليد */
+  function promos() {
+    const v = veh(prefs.vehicle); const fits = (pid) => P[pid] && Store.fitment(pid, v.id).status !== 'unknown';
+    const minOf = (ids) => Math.min(...ids.filter((id) => P[id]).map(minPrice));
+    const catMin = (cat) => minOf(D.parts.filter((p) => p.cat === cat).map((p) => p.id));
+    const sar0 = (h) => fmt.int(Math.round(h / 100));
+    const near = Store.eta(S.S3.id || 'S3');
+    const brakeFor = D.parts.filter((p) => p.cat === 'brakes' && fits(p.id)).map((p) => p.id);
+    const oilPack = ['p07', 'p02'].filter(fits);
+    const slides = [
+      { img: 'promo-brakes', kick: `فرامل ${v.model} ${v.year}`, h: 'فحمات وهوبات من عدة موردين', p: `أصلي وOEM وبديل معتمد، من ${sar0(brakeFor.length ? minOf(brakeFor) : catMin('brakes'))} ر.س`, href: '#cat-brakes', cta: 'قارن العروض' },
+      { img: 'courier-street', kick: 'توصيل داخل الرياض', h: `قطعتك عند بابك خلال ${etaTxt(near)}`, p: 'من أقرب مورد لحيّك، مع رمز تسليم وصورة إثبات.', href: '#search', cta: 'تسوق الآن' },
+      { img: 'promo-oil', kick: 'باقة تغيير الزيت', h: 'زيت 0W-20 وفلتر زيت في طلب واحد', p: oilPack.length === 2 ? `الباقة من ${sar0(minPrice('p07') + minPrice('p02'))} ر.س لـ${v.model}` : `زيوت المحرك من ${sar0(catMin('fluids'))} ر.س`, href: '#cat-fluids', cta: 'اختر الزيت' },
+      { img: 'promo-ac', kick: 'قبل الصيف', h: 'كمبروسرات وفلاتر مكيف', p: `فلاتر المقصورة من ${sar0(minOf(D.parts.filter((p) => p.thumb === 'cabin-filter').map((p) => p.id)))} ر.س`, href: '#cat-cooling', cta: 'تسوق التبريد' },
+    ];
+    const i = Math.min(ui.slide, slides.length - 1);
+    return `<section class="promo" aria-roledescription="carousel" aria-label="عروض صامولة">
+      <div class="promo-track" data-track>${slides.map((x, k) => `<article class="slide ${k === i ? 'is-on' : ''}" aria-roledescription="slide" aria-label="${k + 1} من ${slides.length}">
+        <img src="assets/img/promo/${x.img}.webp" alt="" ${k ? 'loading="lazy"' : 'fetchpriority="high"'} decoding="async">
+        <div class="s-copy"><span class="kick">${x.kick}</span><h3>${x.h}</h3><p>${x.p}</p><a class="go" href="${x.href}">${x.cta}${U.icon('fwd')}</a></div></article>`).join('')}</div>
+      <div class="dots" role="group" aria-label="اختر العرض">${slides.map((x, k) => `<button type="button" data-slide="${k}" aria-label="العرض ${k + 1}" aria-current="${k === i}"></button>`).join('')}</div>
+    </section>`;
+  }
+  function home() {
+    const v = veh(prefs.vehicle);
+    const forCar = D.parts.filter((p) => Store.fitment(p.id, v.id).status !== 'unknown').sort((a, b) => fitOrder[Store.fitment(a.id, v.id).status] - fitOrder[Store.fitment(b.id, v.id).status]);
+    const n = forCar.length; const shown = forCar.slice(0, 6); const rest = forCar.slice(6, 10);
+    return `<h1 class="sr">صامولة: قطع غيار سيارتك من موردي الرياض</h1>
+      <form class="searchbar mob" role="search" data-form="search">${U.icon('search')}<label class="sr" for="q-home">ابحث عن قطعة</label><input id="q-home" name="q" autocomplete="off" placeholder="اسم القطعة أو رقمها OEM" data-goto-search></form>
+      ${activeOrderCard()}
+      ${promos()}
+      <div class="strip">${vehicleCard()}<div class="perks"><div class="perk">${U.icon('lock')}<b>لا دفع قبل الحجز</b><span>كل القطع محجوزة أولًا</span></div>
+        <div class="perk">${U.icon('shield')}<b>توافق بمصدره</b><span>رقم OEM أو دليل المالك</span></div>
+        <div class="perk">${U.icon('truck')}<b>توصيل في يومه</b><span>من ${D.suppliers.filter((x) => x.status === 'approved').length} موردين في الرياض</span></div></div></div>
+      <section class="sec" aria-labelledby="cats-h"><header><h2 id="cats-h">تسوق حسب القسم</h2><a class="link" href="#search">كل القطع</a></header>
+        <div class="cats">${D.categories.map((c) => `<a class="cat" href="#cat-${c.id}">${U.thumb(c.thumb)}<span>${c.name}</span></a>`).join('')}</div></section>
+      <div class="home-grid"><div style="display:grid;gap:16px;min-width:0">
+        <section class="sec" aria-labelledby="fit-h"><header><div><h2 id="fit-h">قطع ${v.model} ${v.year}</h2><p class="sub small">${fmt.count(n, ['قطعة واحدة', 'قطعتان', 'قطع', 'قطعة'])} لها مصدر توافق مع سيارتك</p></div><a class="link" href="#search">عرض الكل</a></header>
+          ${shown.length ? `<div class="pgrid">${shown.map(partCard).join('')}</div>` : '<p class="empty">لا توجد قطع موثقة لهذه السيارة في العرض بعد.</p>'}</section>
+        ${rest.length ? `<section class="card" aria-labelledby="more-h"><header><h2 id="more-h">أيضًا لسيارتك</h2><a class="link" href="#search">عرض الكل</a></header><div class="plist">${rest.map(partRow).join('')}</div></section>` : ''}
+      </div>
+      <aside style="display:grid;gap:16px;min-width:0">
+        <section class="card how-card" aria-labelledby="how-h"><img src="assets/img/promo/hero-warehouse.webp" alt="مستودع قطع غيار في الرياض وموظف يمسح رمز صندوق" loading="lazy" decoding="async"><div class="in"><header style="margin-bottom:12px"><h2 id="how-h">لا تدفع قبل أن تُحجز قطعتك</h2></header>
+          <ol class="steps" style="padding:0;list-style:none">
+            ${[['اختر العرض', 'تقارن أسعار الموردين وضمانهم ومدة التوصيل لكل قطعة.'], ['نحجزها لدى المورد', 'المخزون الحديث يُحجز فورًا، والقديم يؤكده المورد خلال 3 دقائق.'], ['ادفع ثم تابع', 'يُفتح الدفع بعد حجز كل القطع، ثم يتابع المندوب الحزمة حتى بابك.']]
+              .map(([t, d], i) => `<li class="step ${i === 0 ? 'now' : ''}"><span class="b"></span><div><b>${t}</b><div class="sub small">${d}</div></div><span></span></li>`).join('')}
+          </ol></div></section>
+        <section class="card" aria-labelledby="zone-h"><header><h2 id="zone-h">التوصيل إلى ${addr().district}</h2><button class="link" type="button" data-act="address">غيّر</button></header>
+          <dl><div class="kv"><dt>المنطقة</dt><dd>${addr().zone}</dd></div><div class="kv"><dt>أقرب مورد</dt><dd>${S.S3.name} · ${S.S3.km} كم</dd></div><div class="kv"><dt>رسوم التوصيل</dt><dd>من ${fmt.money(POLICY.feeBase)} لكل شحنة</dd></div></dl></section>
+        <section class="card" aria-labelledby="rec-h"><header><h2 id="rec-h">طلبت سابقًا</h2><a class="link" href="#orders">طلباتي</a></header>
+          <div class="plist">${myOrders().filter((o) => o.mine).slice(0, 2).map((o) => { const l = o.groups[0].lines[0]; return `<a class="prow" href="#part-${l.part}">${U.thumb(l.thumb, 'sm')}<div class="info"><div class="nm">${l.name}</div><div class="line2">${vname(o.vehicle)} · ${fmt.date(o.createdAt)}</div></div><span class="btn round" style="height:32px;padding:0 14px">اطلب مجددًا</span></a>`; }).join('')}</div></section>
+      </aside></div>`;
+  }
+
+  /* ---------- البحث ---------- */
+  function searchView(r) {
+    const cat = r.cat || null; const v = veh(prefs.vehicle);
+    let list = searchParts(ui.q, cat);
+    if (ui.onlyFit) list = list.filter((p) => Store.fitment(p.id, v.id).status !== 'unknown');
+    if (ui.tier !== 'all') list = list.filter((p) => offersOf(p.id).some((o) => D.brands[o.brand].tier === ui.tier));
+    list.sort((a, b) => fitOrder[Store.fitment(a.id, v.id).status] - fitOrder[Store.fitment(b.id, v.id).status] || minPrice(a.id) - minPrice(b.id));
+    const byRef = normRef(ui.q).length >= 4 && list.some((p) => p.oem.some((o) => normRef(o).includes(normRef(ui.q))));
+    const title = cat ? catName(cat) : ui.q ? `نتائج «${U.esc(ui.q)}»` : `كل قطع ${v.model} ${v.year}`;
+    return `<form class="searchbar mob" role="search" data-form="search">${U.icon('search')}<label class="sr" for="q-s">ابحث عن قطعة</label><input id="q-s" name="q" autocomplete="off" placeholder="اسم القطعة أو رقمها OEM" value="${U.esc(ui.q)}"></form>
+      <div class="search-page">
+        <div class="filters sec" style="gap:14px">
+          <div class="chips" role="group" aria-label="التصفية">
+            <button class="chip" type="button" data-act="onlyfit" aria-pressed="${ui.onlyFit}">${U.icon('car')}يناسب ${v.model}</button>
+            ${[['all', 'كل الفئات'], ['oe', 'أصلي'], ['oem', 'OEM'], ['am', 'بديل']].map(([k, n]) => `<button class="chip" type="button" data-tier="${k}" aria-pressed="${ui.tier === k}">${n}</button>`).join('')}
+          </div>
+          <div class="chips" role="group" aria-label="الأقسام">${D.categories.map((c) => `<a class="chip" href="#${cat === c.id ? 'search' : 'cat-' + c.id}" aria-pressed="${cat === c.id}">${c.name}</a>`).join('')}</div>
+        </div>
+        <section class="card" aria-labelledby="res-h"><header><div><h1 id="res-h" class="title" style="font-size:18px">${title}</h1>
+          <p class="sub small">${fmt.count(list.length, ['قطعة واحدة', 'قطعتان', 'قطع', 'قطعة'])}${byRef ? ' · بحث برقم القطعة دون اعتبار للشرطات والمسافات' : ''}</p></div></header>
+          <div class="plist" id="results">${list.map(partRow).join('') || `<div class="empty"><b>لا توجد نتيجة${ui.q ? ` لـ «${U.esc(ui.q)}»` : ''}</b><span>جرّب الرقم المطبوع على القطعة القديمة، أو ألغِ تصفية «يناسب ${v.model}».</span></div>`}</div></section>
+      </div>`;
+  }
+
+  /* ---------- القطعة ---------- */
+  function partView(id) {
+    const p = P[id]; if (!p) return `<div class="empty">القطعة غير موجودة.</div>`;
+    const v = veh(prefs.vehicle); const f = Store.fitment(p.id, v.id); const offers = offersOf(p.id); const sorted = sortOffers(offers);
+    const bestId = offers.length ? [...offers].sort((a, b) => score(a, offers) - score(b, offers))[0].id : null;
+    const cart = Store.get().cart; const others = p.fits.filter((x) => x.v !== v.id);
+    return `<nav class="crumbs" aria-label="المسار"><a href="#home">الرئيسية</a>${U.icon('fwd')}<a href="#cat-${p.cat}">${catName(p.cat)}</a>${U.icon('fwd')}<span>${p.name}</span></nav>
+    <div class="part-page">
+      <div class="part-side" style="display:grid;gap:16px;min-width:0">
+        <section class="card part-head">
+          ${U.thumb(p.thumb, 'lg')}
+          <div><h1 class="title">${p.name}</h1><p class="sub">${p.spec} · ${catName(p.cat)}</p></div>
+          ${p.oem.length ? `<div class="refs"><span class="sub small">رقم القطعة الأصلي</span>${p.oem.map((o) => `<b>${fmt.ltr(o)}</b><button class="copy" type="button" data-copy="${o}">${U.icon('file')}نسخ</button>`).join('')}</div>` : ''}
+          <div class="fit" aria-live="polite">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${U.fitPill(f.status)}<span>مع ${vname(v.id)}</span></div>
+            <div class="src">${f.src}${f.status === 'confirmed' ? ' · المصدر: كتالوج مرجعي تجريبي' : ''}</div>
+            ${f.status === 'likely' && p.oem[0] ? `<div class="src">قبل الشراء طابق الرقم المطبوع على قطعتك القديمة مع ${fmt.ltr(p.oem[0])}.</div>` : ''}
+            ${f.status === 'unknown' ? '<div class="src">لا نحكم بالتوافق دون مصدر. يمكنك الشراء على مسؤوليتك أو اختيار سيارة أخرى.</div>' : ''}
+            ${others.length ? `<div class="src">يناسب أيضًا: ${others.map((x) => `${V[x.v].model} ${V[x.v].year}${x.s === 'likely' ? ' (محتمل)' : ''}`).join('، ')}</div>` : ''}
+          </div>
+        </section>
+      </div>
+      <section class="sec" aria-labelledby="off-h">
+        <header style="flex-wrap:wrap"><h2 id="off-h">${offerCount(offers.length)} من موردي الرياض</h2>
+          <div class="seg" role="group" aria-label="ترتيب العروض">${[['best', 'الأنسب'], ['price', 'الأرخص'], ['fast', 'الأسرع'], ['oe', 'الأصلي أولًا']].map(([k, n]) => `<button type="button" data-sort="${k}" aria-pressed="${ui.sort === k}">${n}</button>`).join('')}</div></header>
+        <div class="offers">${sorted.map((o) => offerCard(o, o.id === bestId, cart.some((c) => c.offer === o.id))).join('')}</div>
+        <p class="sub small">الأسعار شاملة ضريبة القيمة المضافة. يُثبَّت السعر عند إنشاء الاقتباس ولا يتغير بعده دون موافقتك.</p>
+      </section>
+    </div>`;
+  }
+  function offerCard(o, best, inCart) {
+    const s = S[o.supplier]; const b = D.brands[o.brand]; const e = Store.eta(o.supplier); const why = Store.verifyReasons(o);
+    return `<article class="offer ${best ? 'best' : ''}">
+      <div style="display:grid;gap:6px;min-width:0">
+        ${best ? '<span class="best-tag">الأنسب لك: سعر ومدة ومخزون حديث</span>' : ''}
+        <div class="who">${U.tierPill(o.brand)}<span>${b.name}</span></div>
+        <div class="sub small">${s.name} · ${s.district} · ${s.km} كم</div>
+      </div>
+      <div class="buy">${fmt.money(o.price)}
+        ${inCart ? `<a class="btn round" href="#cart">${U.icon('check')}في السلة</a>` : `<button class="btn round primary" type="button" data-add="${o.id}">أضف للسلة</button>`}</div>
+      <div class="facts">
+        <span>${U.icon('truck')}${etaTxt(e)}</span>
+        <span>${U.icon('shield')}${o.warranty ? `ضمان ${fmt.count(o.warranty, ['شهر', 'شهران', 'أشهر', 'شهرًا'])}` : 'بلا ضمان'}</span>
+        ${why.length ? `<span class="warn">${U.icon('clock')}يؤكده المورد قبل الدفع: ${why.join('، ')}</span>` : `<span>${U.icon('check')}مخزون محدث ${fmt.ago(o.ageMin)} · يُحجز فورًا</span>`}
+      </div></article>`;
+  }
+
+  /* ---------- السلة ---------- */
+  function cartView() {
+    const st = Store.get(); const lines = st.cart.map((c) => ({ ...c, o: Store.effectiveOffer(c.offer) }));
+    if (!lines.length) return `<h1 class="title">السلة</h1><div class="card"><div class="empty"><b>سلتك فارغة</b><span>ابدأ من قطع سيارتك أو ابحث برقم القطعة.</span><a class="btn round primary" href="#home" style="margin-top:6px">تسوق قطع ${veh(prefs.vehicle).model}</a></div></div>`;
+    const groups = {}; lines.forEach((l) => (groups[l.o.supplier] = groups[l.o.supplier] || []).push(l));
+    const items = lines.reduce((a, l) => a + l.o.price * l.qty, 0); const delivery = Object.keys(groups).reduce((a, sid) => a + Store.fee(sid), 0); const total = items + delivery;
+    const a = addr(); const verifyCount = lines.filter((l) => Store.verifyReasons(l.o).length || l.o.qty < l.qty).length;
+    return `<div><h1 class="title">السلة</h1><p class="sub">${fmt.count(Object.keys(groups).length, ['شحنة واحدة', 'شحنتان', 'شحنات', 'شحنة'])} من ${fmt.count(Object.keys(groups).length, ['مورد واحد', 'موردين', 'موردين', 'موردًا'])}، لكل شحنة موعدها ورسومها</p></div>
+    <div class="two"><div style="display:grid;gap:16px;min-width:0">
+      ${Object.entries(groups).map(([sid, ls]) => { const s = S[sid]; const e = Store.eta(sid); return `<section class="card grp" aria-label="شحنة ${s.name}">
+        <div class="grp-head"><div><div class="s">${s.name}</div><div class="m">${s.branch} · يصل خلال ${etaTxt(e)}</div></div><div class="m" style="text-align:end">التوصيل<br>${fmt.money(Store.fee(sid))}</div></div>
+        ${ls.map((l) => { const p = P[l.o.part]; const why = Store.verifyReasons(l.o); if (l.o.qty < l.qty) why.push('الكمية المطلوبة أكبر من المعلن'); return `<div class="line">${U.thumb(p.thumb, 'sm')}
+          <div class="info"><div style="font-weight:500">${p.name}</div><div class="sub small" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${U.tierPill(l.o.brand)}${D.brands[l.o.brand].name}${p.oem[0] ? ` · ${fmt.ltr(p.oem[0])}` : ''}</div>
+            ${why.length ? `<div class="why">${U.icon('clock')}<span>سيؤكدها المورد خلال 3 دقائق: ${why.join('، ')}</span></div>` : ''}</div>
+          <div style="display:grid;justify-items:end;gap:6px">${fmt.money(l.o.price * l.qty)}
+            <div class="stepper" role="group" aria-label="الكمية"><button type="button" data-qty="${l.offer}" data-d="1" aria-label="زيادة">${U.icon('plus')}</button><span>${l.qty}</span><button type="button" data-qty="${l.offer}" data-d="-1" aria-label="${l.qty === 1 ? 'حذف' : 'إنقاص'}">${U.icon(l.qty === 1 ? 'trash' : 'minus')}</button></div></div></div>`; }).join('')}
+      </section>`; }).join('')}
+      <section class="card" aria-labelledby="addr-h"><header><h2 id="addr-h">عنوان التوصيل</h2></header><div style="display:grid;gap:8px">
+        ${me.addresses.map((x) => `<label class="addr-opt" ${x.inZone ? '' : 'aria-disabled="true"'}><input type="radio" name="addr" value="${x.id}" ${x.id === a.id ? 'checked' : ''} ${x.inZone ? '' : 'disabled'}>
+          <span style="display:grid;gap:2px"><b>${x.label} · ${x.district}</b><span class="sub small">${x.street} · العنوان الوطني ${fmt.ltr(x.nationalAddress)}</span>${x.inZone ? '' : '<span class="small" style="color:var(--negative)">خارج منطقة الخدمة حاليًا</span>'}</span></label>`).join('')}
+      </div></section>
+    </div>
+    <aside class="stick" style="display:grid;gap:16px;min-width:0"><section class="card sum" aria-labelledby="sum-h"><header><h2 id="sum-h">الملخص</h2></header>
+      <dl><div class="kv"><dt>قيمة القطع</dt><dd>${fmt.money(items)}</dd></div><div class="kv"><dt>التوصيل (${Object.keys(groups).length})</dt><dd>${fmt.money(delivery)}</dd></div>
+      <div class="kv total"><dt>الإجمالي</dt><dd>${fmt.money(total)}</dd></div><div class="kv small"><dt>منها ضريبة القيمة المضافة 15%</dt><dd>${fmt.money(Store.vatOf(total))}</dd></div></dl>
+      <button class="btn round primary lg block" type="button" data-act="quote" style="margin-top:14px">${verifyCount ? 'احجز القطع وتحقق من التوفر' : 'احجز القطع'}</button>
+      <p class="sub small" style="margin-top:10px">لن نخصم شيئًا الآن. ${verifyCount ? `${fmt.count(verifyCount, ['قطعة واحدة تحتاج', 'قطعتان تحتاجان', 'قطع تحتاج', 'قطعة تحتاج'])} تأكيد المورد، والباقي يُحجز فورًا.` : 'كل القطع تُحجز فورًا.'} يُفتح الدفع بعد حجز الجميع.</p>
+    </section></aside></div>`;
+  }
+
+  /* ---------- الاقتباس والتتبع ---------- */
+  function orderView(id) {
+    const o = Store.findOrder(id); if (!o) return `<div class="card"><div class="empty">لم نجد هذا الطلب. ربما أُعيد ضبط العرض.<a class="link" href="#orders">طلباتي</a></div></div>`;
+    return o.payment.state === 'CAPTURED' ? trackView(o) : quoteView(o);
+  }
+  function quoteView(o) {
+    const st = Store.orderStatus(o); const t = Store.orderTotals(o); const held = o.groups.filter((g) => g.state === 'HELD').length;
+    const ready = st === 'READY_TO_PAY'; const a = me.addresses.find((x) => x.id === o.addressId) || addr();
+    const head = { VERIFYING: `حُجز ${held} من ${o.groups.length}. ننتظر تأكيد ${o.groups.filter((g) => g.state === 'VERIFYING').map((g) => S[g.supplier].name).join(' و')}.`,
+      READY_TO_PAY: ready ? `كل القطع محجوزة لك حتى ${fmt.time(Math.min(...o.groups.map((g) => g.hold.until)))}. لم يُخصم شيء بعد.` : '', ACTION_REQUIRED: 'قطعة لم تُحجز. قرر قبل أن تدفع: لا نكمل جزءًا من السلة دون موافقتك.',
+      PAYMENT_PROCESSING: 'أرسلنا طلب الدفع. ننتظر إشعار البوابة الموقّع؛ صفحة العودة وحدها لا تثبت الدفع.', PAYMENT_REVIEW: o.payment.note || 'الدفع قيد المراجعة.', CANCELLED: 'أُلغي هذا الاقتباس ولم يُخصم شيء.' }[st];
+    return `<div><h1 class="title">الاقتباس ${fmt.ltr(o.id)}</h1><p class="sub">${head}</p></div>
+    <div class="two"><div style="display:grid;gap:16px;min-width:0">
+      ${o.groups.map((g) => groupBlock(o, g)).join('')}
+    </div>
+    <aside class="stick" style="display:grid;gap:16px;min-width:0">
+      <section class="card sum" aria-labelledby="pay-h"><header><h2 id="pay-h">الدفع</h2>${U.pill(Store.ORDER_LABEL[st], Store.tone(st))}</header>
+        <dl><div class="kv"><dt>قيمة القطع</dt><dd>${fmt.money(t.items)}</dd></div><div class="kv"><dt>التوصيل إلى ${a.district}</dt><dd>${fmt.money(t.delivery)}</dd></div>
+        <div class="kv total"><dt>الإجمالي</dt><dd>${fmt.money(t.total)}</dd></div><div class="kv small"><dt>منها ضريبة القيمة المضافة</dt><dd>${fmt.money(t.vat)}</dd></div></dl>
+        ${st === 'CANCELLED' ? '' : `<div class="pay-opts" role="group" aria-label="طريقة الدفع" style="margin-top:14px">${['مدى', 'Apple Pay', 'STC Pay'].map((m) => `<button class="pay-opt" type="button" data-pay="${m}" aria-pressed="${ui.pay === m}" ${o.payment.state !== 'NONE' ? 'disabled' : ''}>${m}</button>`).join('')}</div>
+        <button class="btn round primary lg block" type="button" data-act="pay" data-id="${o.id}" style="margin-top:12px" ${ready && o.payment.state === 'NONE' ? '' : 'disabled'}>${o.payment.state === 'PROCESSING' ? 'بانتظار تأكيد البوابة' : `ادفع ${fmt.sar(t.total)} ر.س`}</button>
+        <p class="sub small" style="margin-top:10px">${ready ? 'دفع محاكى: لا تُطلب بيانات بطاقة ولا يُخصم مبلغ حقيقي.' : `يُفتح الدفع عند حجز كل القطع (${held} من ${o.groups.length} محجوزة).`}</p>
+        ${o.payment.state === 'NONE' ? `<button class="link" type="button" data-act="cancel" data-id="${o.id}" style="margin-top:10px">ألغِ الاقتباس وأطلق الحجوزات</button>` : ''}`}
+      </section>
+      ${demoBox(o)}
+    </aside></div>`;
+  }
+  function groupBlock(o, g) {
+    const s = S[g.supplier]; const sum = Store.groupTotal(g);
+    let state = '';
+    if (g.state === 'VERIFYING') state = `<div class="gstate"><div class="row1"><b>بانتظار تأكيد ${s.name}</b><span>تنتهي المهلة خلال ${U.countdown(g.verify.deadline)}</span></div>${U.ttl(g.verify.deadline, POLICY.verifySec)}
+      <div class="sub small">السبب: ${g.verify.reasons.join('، ')}. يتأكد المورد من الرف ويعزل القطعة لك.</div></div>`;
+    else if (g.state === 'HELD') state = `<div class="gstate"><div class="row1"><span style="display:flex;gap:8px;align-items:center">${U.pill('محجوز لك', 'pos', 'check')}<span class="sub small">مرجع ${fmt.ltr(g.hold.ref)}</span></span><span>ينتهي خلال ${U.countdown(g.hold.until)}</span></div>${U.ttl(g.hold.until, POLICY.holdSec)}</div>`;
+    else if (g.state === 'REJECTED') state = `<div class="gstate"><div class="row1">${U.pill('رفض المورد', 'neg', 'x')}</div><div class="small">${g.verify.reason || 'غير متوفر'}</div>
+      <div class="acts"><button class="btn round primary" type="button" data-drop="${g.id}" data-o="${o.id}">أكمل بدونها (اقتباس جديد)</button><a class="btn round" href="#part-${g.lines[0].part}">اختر عرضًا آخر</a></div></div>`;
+    else if (g.state === 'EXPIRED' || g.state === 'HOLD_EXPIRED') state = `<div class="gstate"><div class="row1">${U.pill(Store.GROUP_LABEL[g.state], 'neg', 'clock')}</div><div class="small">${g.state === 'EXPIRED' ? 'لم يرد المورد خلال 3 دقائق، فلم نحجز ولم نخصم شيئًا.' : 'انتهت مدة الحجز قبل الدفع وأعدنا الكمية للمورد.'}</div>
+      <div class="acts"><button class="btn round primary" type="button" data-retry="${g.id}" data-o="${o.id}">أعد التحقق</button>${o.groups.length > 1 ? `<button class="btn round" type="button" data-drop="${g.id}" data-o="${o.id}">أكمل بدونها</button>` : ''}</div></div>`;
+    return `<section class="card grp" aria-label="شحنة ${s.name}"><div class="grp-head"><div><div class="s">${s.name}</div><div class="m">${s.branch} · ${etaTxt(g.eta)}</div></div><div class="m" style="text-align:end">${fmt.money(sum + g.fee)}</div></div>
+      ${g.lines.map((l) => `<div class="line">${U.thumb(l.thumb, 'sm')}<div class="info"><div style="font-weight:500">${l.name}${l.qty > 1 ? ` × ${l.qty}` : ''}</div><div class="sub small" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${U.tierPill(l.brand)}${D.brands[l.brand].name}${l.oem ? ` · ${fmt.ltr(l.oem)}` : ''}</div></div>${fmt.money(l.price * l.qty)}</div>`).join('')}
+      ${state}</section>`;
+  }
+  function demoBox(o) {
+    const waiting = o.groups.find((g) => g.state === 'VERIFYING' && g.supplier === D.meta.demoSupplier);
+    if (!waiting) return '';
+    return `<section class="card" aria-labelledby="demo-h" style="background:var(--raised);border-style:dashed"><header><h2 id="demo-h">جرّب دور المورد</h2></header>
+      <p class="small">طلب التحقق وصل الآن إلى «${S[waiting.supplier].name}». افتح واجهة المورد في تبويب آخر وأكّد التوفر، وستتحدث هذه الصفحة وحدها.</p>
+      <div class="acts" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><a class="btn round primary" href="vendor.html" target="_blank" rel="noopener">${U.icon('store')}افتح واجهة المورد</a><button class="btn round" type="button" data-act="sim-accept" data-g="${waiting.id}">محاكاة تأكيد المورد</button></div></section>`;
+  }
+  function trackView(o) {
+    const st = Store.orderStatus(o); const a = me.addresses.find((x) => x.id === o.addressId) || me.addresses[0]; const t = Store.orderTotals(o);
+    const focus = o.groups.find((g) => ['IN_TRANSIT', 'AT_DROPOFF'].includes(g.state)) || o.groups.find((g) => ['ASSIGNED', 'AT_PICKUP'].includes(g.state)) || o.groups.find((g) => g.state !== 'DELIVERED') || o.groups[0];
+    const mapOpts = { from: S[focus.supplier].pos, to: a.pos, label: `مسار الشحنة من ${S[focus.supplier].branch} إلى ${a.district}` };
+    if (focus.state === 'IN_TRANSIT') mapOpts.transit = { at: focus.job.transitAt, dur: POLICY.transitSec }; else if (focus.state === 'AT_DROPOFF' || focus.state === 'DELIVERED') mapOpts.progress = 1; else if (['ASSIGNED', 'AT_PICKUP'].includes(focus.state)) mapOpts.progress = 0;
+    const otp = o.groups.find((g) => g.job && g.job.otp && g.state !== 'DELIVERED');
+    const finding = st === 'DELIVERED' ? `سُلّمت ${fmt.count(o.groups.length, ['الشحنة', 'الشحنتان', 'الشحنات', 'شحنة'])} إلى ${a.district}.` : o.groups.map((g) => `${S[g.supplier].name}: ${Store.GROUP_LABEL[g.state]}`).join(' · ');
+    return `<div><h1 class="title">طلبك ${fmt.ltr(o.id)}</h1><p class="sub">${finding}</p></div>
+    <div class="two"><div style="display:grid;gap:16px;min-width:0">
+      <section class="card" aria-label="الخريطة" style="padding:8px">${U.map(mapOpts)}</section>
+      ${o.exception ? `<p class="notice warn">${U.icon('alert')}<span>${o.exception.kind}. سجّله ${o.exception.by} الساعة ${fmt.time(o.exception.at)}. سيتواصل معك فريق الدعم.</span></p>` : ''}
+      ${otp && st !== 'DELIVERED' ? `<div class="otp"><div><div class="l">رمز التسليم</div><div class="small">أعطه للمندوب عند استلام الحزمة فقط</div></div><div class="digits">${otp.job.otp}</div></div>` : ''}
+      ${o.groups.map((g) => shipment(o, g)).join('')}
+    </div>
+    <aside class="stick" style="display:grid;gap:16px;min-width:0">
+      <section class="card sum" aria-labelledby="ps-h"><header><h2 id="ps-h">الفاتورة</h2>${U.pill(Store.ORDER_LABEL[st], Store.tone(st))}</header>
+        <dl><div class="kv"><dt>قيمة القطع</dt><dd>${fmt.money(t.items)}</dd></div><div class="kv"><dt>التوصيل</dt><dd>${fmt.money(t.delivery)}</dd></div><div class="kv total"><dt>المدفوع عبر ${o.payment.method}</dt><dd>${fmt.money(t.total)}</dd></div><div class="kv small"><dt>منها ضريبة القيمة المضافة</dt><dd>${fmt.money(t.vat)}</dd></div></dl></section>
+      <section class="card" aria-labelledby="tl-h"><header><h2 id="tl-h">سجل الطلب</h2></header>
+        <ol class="tl" style="padding:0;list-style:none">${[...o.timeline].reverse().slice(0, ui.tlOpen ? 99 : 6).map((e) => `<li><span class="when">${fmt.time(e.at)}</span><span><span class="who">${e.actor}</span> ${e.text}</span></li>`).join('')}</ol>
+        ${o.timeline.length > 6 ? `<button class="link" type="button" data-act="tl" style="margin-top:10px">${ui.tlOpen ? 'أخفِ' : `كل الأحداث (${o.timeline.length})`}</button>` : ''}</section>
+      ${o.live && st !== 'DELIVERED' ? `<section class="card" style="background:var(--raised);border-style:dashed"><header><h2>العرض في تبويبات</h2></header><p class="small">تابع المورد يجهز الحزمة والمندوب يستلمها، كلٌ من واجهته.</p><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><a class="btn round" href="vendor.html" target="_blank" rel="noopener">${U.icon('store')}المورد</a><a class="btn round" href="courier.html" target="_blank" rel="noopener">${U.icon('truck')}المندوب</a></div></section>` : ''}
+    </aside></div>`;
+  }
+  function shipment(o, g) {
+    const s = S[g.supplier]; const idx = { PAID: 1, PREPARING: 1, READY: 3, ASSIGNED: 3, AT_PICKUP: 3, IN_TRANSIT: 3, AT_DROPOFF: 3, DELIVERED: 4 }[g.state] ?? 0;
+    const NOW = { PAID: 'بانتظار بدء التجهيز', READY: 'بانتظار مندوب يستلمها', ASSIGNED: Store.GROUP_LABEL.ASSIGNED, AT_PICKUP: Store.GROUP_LABEL.AT_PICKUP, AT_DROPOFF: Store.GROUP_LABEL.AT_DROPOFF };
+    const steps = [['تم الدفع', o.payment.at], ['قيد التجهيز لدى المورد', null], ['جاهز وصورة التغليف مرفوعة', g.pkg && g.pkg.proofAt], ['مع المندوب', g.job && g.job.pickupAt], ['تم التسليم', g.job && g.job.deliveredAt]];
+    const cr = g.job && g.job.courier && C[g.job.courier];
+    return `<section class="card" aria-label="شحنة ${s.name}"><header><div><h2>${s.name}</h2><p class="sub small">${s.branch}${g.pkg ? ` · الحزمة ${fmt.ltr(g.pkg.code)}` : ''}</p></div>${U.pill(Store.GROUP_LABEL[g.state], g.state === 'DELIVERED' ? 'pos' : 'info')}</header>
+      <ol class="steps" style="padding:0;list-style:none">${steps.map(([t, at], i) => `<li class="step ${i < idx || (i === idx && g.state === 'DELIVERED') ? 'done' : i === idx ? 'now' : 'todo'}"><span class="b"></span><span>${i === idx && NOW[g.state] ? NOW[g.state] : t}</span><span class="t">${at ? fmt.time(at) : i === idx && g.state !== 'DELIVERED' ? `متوقع خلال ${etaTxt(g.eta)}` : ''}</span></li>`).join('')}</ol>
+      ${cr ? `<div class="courier-card" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--rule)">${U.avatar(cr.name, cr.initial)}<div style="flex:1"><b>${cr.name}</b><div class="sub small">${cr.vehicle} · ${cr.plate} · تقييم ${cr.rating}</div></div><button class="btn round icon" type="button" aria-label="اتصال برقم مخفي (غير مفعّل في العرض)" disabled>${U.icon('phone')}</button></div>` : ''}
+    </section>`;
+  }
+
+  /* ---------- طلباتي وحسابي ---------- */
+  function ordersView() {
+    const list = myOrders();
+    return `<h1 class="title">طلباتي</h1><section class="card">${list.length ? list.map((o) => { const st = Store.orderStatus(o); const t = Store.orderTotals(o); const l = o.groups[0].lines[0];
+      return `<a class="order-row" href="#order-${o.id}">${U.thumb(l.thumb, 'sm')}<div class="info"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b>${fmt.ltr(o.id)}</b>${U.pill(Store.ORDER_LABEL[st], Store.tone(st))}</div>
+        <div class="sub small">${o.groups.flatMap((g) => g.lines.map((x) => x.name)).join('، ')} · ${vname(o.vehicle)}</div><div class="sub small">${fmt.date(o.createdAt)} · ${fmt.time(o.createdAt)}</div></div>${fmt.money(t.total)}</a>`; }).join('')
+      : '<div class="empty">لا طلبات بعد.</div>'}</section>`;
+  }
+  function accountView() {
+    const st = Store.get();
+    return `<div><h1 class="title">${me.name}</h1><p class="sub">${fmt.ltr(me.phoneMasked)}</p></div>
+    <div class="two"><div style="display:grid;gap:16px;min-width:0">
+      <section class="card" aria-labelledby="g-h"><header><h2 id="g-h">سياراتي</h2></header>
+        ${me.vehicles.map((x) => { const v = V[x.vehicle]; return `<div class="garage-row"><span class="thumb sm" style="background:var(--accent-soft);color:var(--accent)">${U.icon('car')}</span><div class="info"><b>${x.nick}</b><div class="sub small">${vname(v.id)} · ${v.engine}${v.engineCode ? ` ${fmt.ltr(v.engineCode)}` : ''} · ${fmt.ltr(x.vinMasked)}</div></div>${prefs.vehicle === v.id ? U.pill('الحالية', 'info') : `<button class="btn round" type="button" data-veh="${v.id}">اختر</button>`}</div>`; }).join('')}
+        <form data-form="vin" style="display:grid;gap:8px;margin-top:12px"><label class="label" for="vin">أضف سيارة برقم الهيكل (VIN)</label>
+          <div style="display:flex;gap:8px"><input class="input ref" id="vin" name="vin" maxlength="17" dir="ltr" autocomplete="off" placeholder="17 خانة مطبوعة على الاستمارة"><button class="btn round primary" style="height:40px">تحقق</button></div>
+          <div id="vin-out"></div></form></section>
+      <section class="card" aria-labelledby="ad-h"><header><h2 id="ad-h">عناويني</h2></header>
+        ${me.addresses.map((x) => `<div class="garage-row"><span class="thumb sm">${U.icon('pin')}</span><div class="info"><b>${x.label} · ${x.district}</b><div class="sub small">${x.street} · ${fmt.ltr(x.nationalAddress)}</div></div>${x.inZone ? '' : U.pill('خارج الخدمة', 'neutral')}</div>`).join('')}</section>
+    </div>
+    <aside style="display:grid;gap:16px;min-width:0">
+      <section class="card" aria-labelledby="th-h"><header><h2 id="th-h">المظهر</h2></header>${U.themeSeg()}</section>
+      <section class="card" aria-labelledby="dm-h" style="background:var(--raised);border-style:dashed"><header><h2 id="dm-h">أدوات العرض</h2></header>
+        <div style="display:grid;gap:12px">
+          <label class="check"><input type="checkbox" class="switch" data-demo="autoVendor" ${st.demo.autoVendor ? 'checked' : ''}><span><b>رد المورد تلقائيًا</b><span class="sub small" style="display:block">لعرض الرحلة على جهاز واحد دون فتح واجهة المورد</span></span></label>
+          <label class="check"><input type="checkbox" class="switch" data-demo="autoCourier" ${st.demo.autoCourier ? 'checked' : ''}><span><b>توصيل تلقائي</b><span class="sub small" style="display:block">مندوب محاكى يقبل المهمة ويكملها</span></span></label>
+          <button class="btn round danger" type="button" data-act="reset">أعد ضبط بيانات العرض</button>
+          <a class="link" href="index.html">كل الواجهات</a>
+        </div></section>
+    </aside></div>`;
+  }
+
+  /* ---------- الرسم ---------- */
+  function page() {
+    const r = route(); let body = '';
+    if (r.view === 'home') body = home(); else if (r.view === 'search') body = searchView(r); else if (r.view === 'part') body = partView(r.id);
+    else if (r.view === 'cart') body = cartView(); else if (r.view === 'order') body = orderView(r.id); else if (r.view === 'orders') body = ordersView(); else body = accountView();
+    return header(r) + `<main class="c-main" id="main">${body}</main>` + tabbar(r);
+  }
+  const paint = U.renderer(root, page);
+  const render = () => { paint(); carousel(); };
+
+  /* ---------- شرائح الإعلانات ---------- */
+  // الرسم يعيد بناء الصفحة، فنحفظ رقم الشريحة ونعيد التمرير إليها دون حركة
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let slideTimer = null; let slidePaused = false;
+  function slideTo(track, i, smooth) {
+    const slides = track.children; if (!slides[i]) return;
+    const delta = slides[i].getBoundingClientRect().right - track.getBoundingClientRect().right;
+    track.scrollBy({ left: delta, behavior: smooth && !reduced ? 'smooth' : 'auto' });
+  }
+  function markSlide(track, i) {
+    ui.slide = i;
+    [...track.children].forEach((el, k) => el.classList.toggle('is-on', k === i));
+    root.querySelectorAll('[data-slide]').forEach((b) => b.setAttribute('aria-current', String(Number(b.dataset.slide) === i)));
+  }
+  function carousel() {
+    const track = root.querySelector('[data-track]'); clearInterval(slideTimer); if (!track) return;
+    slideTo(track, ui.slide, false);
+    let raf = 0;
+    track.addEventListener('scroll', () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => {
+      const r = track.getBoundingClientRect().right; let best = 0, d = Infinity;
+      [...track.children].forEach((el, k) => { const x = Math.abs(el.getBoundingClientRect().right - r); if (x < d) { d = x; best = k; } });
+      if (best !== ui.slide) markSlide(track, best);
+    }); }, { passive: true });
+    ['pointerdown', 'focusin', 'mouseenter'].forEach((ev) => track.addEventListener(ev, () => { slidePaused = true; }));
+    track.addEventListener('mouseleave', () => { slidePaused = false; });
+    if (!reduced) slideTimer = setInterval(() => {
+      if (slidePaused || document.hidden) return;
+      const n = track.children.length; const per = Math.round(track.clientWidth / track.children[0].clientWidth) || 1;
+      slideTo(track, (ui.slide + 1) % Math.max(1, n - per + 1), true);
+    }, 5000);
+  }
+  window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); if (ui.focusSearch) { ui.focusSearch = false; const i = root.querySelector('#q-s') || root.querySelector('#q-top'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } } });
+  Store.on(render); render();
+
+  /* ---------- الأحداث ---------- */
+  root.addEventListener('click', (e) => {
+    const t = e.target.closest('button, [data-add], [data-act]'); if (!t) return;
+    const d = t.dataset;
+    if (d.slide) { const track = root.querySelector('[data-track]'); slidePaused = true; slideTo(track, Number(d.slide), true); }
+    else if (d.add) { A.addToCart(d.add); U.toast('أُضيفت إلى السلة'); }
+    else if (d.qty) { const c = Store.get().cart.find((x) => x.offer === d.qty); A.setQty(d.qty, c.qty + Number(d.d)); }
+    else if (d.sort) { ui.sort = d.sort; render(); }
+    else if (d.tier) { ui.tier = d.tier; render(); }
+    else if (d.pay) { ui.pay = d.pay; render(); }
+    else if (d.copy) { const done = () => U.toast(`نُسخ ${d.copy}`); try { navigator.clipboard.writeText(d.copy).then(done, () => U.toast(d.copy)); } catch (err) { U.toast(d.copy); } }
+    else if (d.veh) { prefs.vehicle = d.veh; savePrefs(); render(); U.toast(`السيارة الحالية: ${vname(d.veh)}`); }
+    else if (d.drop) { A.dropGroup(d.o, d.drop); }
+    else if (d.retry) { A.retryGroup(d.o, d.retry); }
+    else if (d.act === 'onlyfit') { ui.onlyFit = !ui.onlyFit; render(); }
+    else if (d.act === 'quote') { const id = A.createQuote(prefs.address, prefs.vehicle); go('order-' + id); }
+    else if (d.act === 'pay') { const r = A.pay(d.id, ui.pay); if (r !== 'ok') U.toast('لا يمكن الدفع: لم تُحجز كل القطع'); }
+    else if (d.act === 'cancel') { A.cancelQuote(d.id); }
+    else if (d.act === 'sim-accept') { A.respond(d.g, true); U.toast('أكد المورد التوفر (محاكاة)'); }
+    else if (d.act === 'tl') { ui.tlOpen = !ui.tlOpen; render(); }
+    else if (d.act === 'reset') { A.reset(); U.toast('أُعيد ضبط العرض'); go('home'); }
+    else if (d.act === 'vehicle') vehicleSheet();
+    else if (d.act === 'address') addressSheet();
+  });
+  root.addEventListener('change', (e) => {
+    const t = e.target;
+    if (t.name === 'addr') { prefs.address = t.value; savePrefs(); render(); }
+    if (t.dataset.demo) A.setDemo(t.dataset.demo, t.checked);
+  });
+  root.addEventListener('focusin', (e) => { if (e.target.matches('[data-goto-search]')) { ui.focusSearch = true; go('search'); } });
+  root.addEventListener('input', (e) => {
+    if (e.target.name !== 'q') return; ui.q = e.target.value;
+    if (route().view === 'search' || route().view === 'part') { if (route().view !== 'search') { ui.focusSearch = true; go('search'); return; } const box = root.querySelector('#results'); const html = searchView(route()); const tmp = document.createElement('div'); tmp.innerHTML = html; const nr = tmp.querySelector('#results'); const nh = tmp.querySelector('#res-h'); if (box && nr) box.innerHTML = nr.innerHTML; const oh = root.querySelector('#res-h'); if (oh && nh) { oh.innerHTML = nh.innerHTML; oh.nextElementSibling.innerHTML = nh.nextElementSibling.innerHTML; } }
+  });
+  root.addEventListener('submit', (e) => {
+    e.preventDefault(); const f = e.target;
+    if (f.dataset.form === 'search') { ui.q = f.q.value.trim(); ui.focusSearch = false; go('search'); render(); }
+    if (f.dataset.form === 'vin') vinCheck(f.vin.value);
+  });
+
+  function vinCheck(raw) {
+    const vin = raw.trim().toUpperCase(); const out = root.querySelector('#vin-out'); let html;
+    if (vin.length !== 17) html = `<p class="small" style="color:var(--negative)">رقم الهيكل 17 خانة؛ أدخلت ${vin.length}.</p>`;
+    else if (/[IOQ]/.test(vin) || !/^[A-HJ-NPR-Z0-9]{17}$/.test(vin)) html = '<p class="small" style="color:var(--negative)">الأحرف I وO وQ لا تُستخدم في رقم الهيكل؛ تحقق من الخانات.</p>';
+    else {
+      const wmi = vin.slice(0, 3); const match = D.vehicles.filter((v) => v.wmi === wmi);
+      html = `<div class="vin-result"><b>الصيغة صحيحة · رمز الصانع ${fmt.ltr(wmi)}${match.length ? ` (${match[0].make})` : ''}</b>
+        <span>فك الرقم كاملًا يحتاج مصدرًا مرخصًا يغطي مواصفات الخليج (قرار D-08). قاعدة vPIC الأمريكية محدودة لهذه السيارات، لذلك نطلب تأكيد الطراز والمحرك:</span>
+        ${(match.length ? match : D.vehicles.slice(0, 4)).map((v) => `<button class="btn round" type="button" data-veh="${v.id}" style="justify-self:start">${vname(v.id)} · ${v.engine}</button>`).join('')}</div>`;
+    }
+    out.innerHTML = html;
+  }
+  function vehicleSheet() {
+    const d = U.dialog(`<div class="sheet-head"><h2>اختر السيارة</h2><button class="btn ghost icon" data-close aria-label="إغلاق">${U.icon('x')}</button></div>
+      <div class="sheet-body"><div class="rows">${me.vehicles.map((x) => `<button class="garage-row" type="button" data-pick="${x.vehicle}" style="width:100%;background:none;border:0;text-align:start">${U.icon('car')}<span class="info"><b>${x.nick}</b><span class="sub small" style="display:block">${vname(x.vehicle)} · ${V[x.vehicle].engine}</span></span>${prefs.vehicle === x.vehicle ? U.pill('الحالية', 'info') : ''}</button>`).join('')}</div>
+      <div class="field"><label for="other-v">سيارة أخرى من القائمة</label><select class="input" id="other-v">${D.vehicles.map((v) => `<option value="${v.id}" ${v.id === prefs.vehicle ? 'selected' : ''}>${vname(v.id)} · ${v.engine}</option>`).join('')}</select><span class="hint">القائمة من أكثر السيارات مبيعًا في السعودية 2025.</span></div></div>
+      <div class="sheet-foot"><button class="btn round primary" data-pick-select>اعتمد</button></div>`);
+    d.addEventListener('click', (e) => { const b = e.target.closest('[data-pick],[data-pick-select]'); if (!b) return; prefs.vehicle = b.dataset.pick || d.querySelector('#other-v').value; savePrefs(); d.close(); render(); });
+  }
+  function addressSheet() {
+    const d = U.dialog(`<div class="sheet-head"><h2>التوصيل إلى</h2><button class="btn ghost icon" data-close aria-label="إغلاق">${U.icon('x')}</button></div>
+      <div class="sheet-body">${me.addresses.map((x) => `<label class="addr-opt" ${x.inZone ? '' : 'aria-disabled="true"'}><input type="radio" name="addr-s" value="${x.id}" ${x.id === prefs.address ? 'checked' : ''} ${x.inZone ? '' : 'disabled'}><span style="display:grid;gap:2px"><b>${x.label} · ${x.district}</b><span class="sub small">${x.inZone ? x.zone : 'خارج منطقة الخدمة حاليًا'}</span></span></label>`).join('')}</div>`);
+    d.addEventListener('change', (e) => { prefs.address = e.target.value; savePrefs(); d.close(); render(); });
+  }
+})();
+</script>
+</body>
+</html>

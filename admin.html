@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>صامولة للإدارة</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/backoffice.css">
+<style>
+  .exc { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 0; }
+  .exc + .exc { border-top: 1px solid var(--rule); }
+  .exc .t { display: grid; gap: 2px; min-width: 0; }
+  .exc .t .s { font-size: var(--fs-small); color: var(--muted); }
+  .exc.done { opacity: 0.55; }
+  .pipe .kpi-value { font-size: 26px; }
+  .feed li { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 8px; padding: 7px 0; font-size: 13px; }
+  .feed li + li { border-top: 1px solid var(--rule); }
+  .feed .when { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .docs { display: grid; gap: 8px; }
+  .doc { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: var(--radius-control); background: var(--raised); }
+  .doc svg { width: 16px; height: 16px; color: var(--muted); }
+  .doc .t { flex: 1; min-width: 0; }
+  .conf { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+  .conf .track { width: 64px; height: 4px; border-radius: 999px; background: var(--active); overflow: hidden; }
+  .conf .track span { display: block; height: 100%; background: var(--text); }
+  .conf .track span.low { background: var(--negative); }
+  .raw { font-size: 13.5px; }
+  .policy-row td:first-child { white-space: nowrap; }
+  .tl { display: grid; gap: 8px; font-size: 13px; }
+  .tl li { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 8px; }
+  .tl .when { color: var(--muted); font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="assets/data.js"></script>
+<script src="assets/store.js"></script>
+<script src="assets/ui.js"></script>
+<script src="assets/charts.js"></script>
+<script src="assets/bo.js"></script>
+<script>
+(function () {
+  const { A, fmt, P, S, C, V, D, POLICY } = Store; const U = UI;
+  const root = document.getElementById('app');
+  const ui = { tab: 'all', q: '' };
+  const H12 = 12 * 3600 * 1000;
+  const orders = () => Store.get().orders;
+  const allGroups = () => orders().flatMap((o) => o.groups.map((g) => ({ o, g })));
+  const resolved = (k) => Store.get().admin.resolved[k];
+
+  function route() { const h = location.hash.slice(1); return ['market', 'orders', 'suppliers', 'catalog', 'couriers', 'policies', 'audit'].includes(h) ? h : 'market'; }
+  const TITLES = { market: 'حالة السوق', orders: 'الطلبات', suppliers: 'الموردون', catalog: 'مراجعة الكتالوج', couriers: 'المندوبون', policies: 'السياسات', audit: 'سجل التدقيق' };
+
+  /* ---------- استثناءات تحتاج قرارًا: كلها محسوبة من الحالة ---------- */
+  function exceptions() {
+    const list = [];
+    orders().forEach((o) => {
+      if (o.payment.state === 'REVIEW') list.push({ key: 'pay-' + o.id, tone: 'neg', title: `دفع بنتيجة غير معروفة · ${fmt.ltr(o.id)}`, sub: o.payment.note, act: 'استعلم من البوابة', done: `استعلام البوابة عن ${o.id}: لم يُحصّل؛ أُبلغ العميل وأُطلقت الحجوزات` });
+      if (o.exception) list.push({ key: 'exc-' + o.id, tone: 'warn', title: `${o.exception.kind} · ${fmt.ltr(o.id)}`, sub: `سجّله ${o.exception.by} ${fmt.ago((Date.now() - o.exception.at) / 60000)}؛ الحزمة في حيازة المندوب`, act: 'اتصل بالعميل', done: `تواصل الدعم مع عميل ${o.id} واتُّفق على موعد تسليم جديد` });
+      o.groups.forEach((g) => { if (g.state === 'EXPIRED') list.push({ key: 'exp-' + g.id, tone: 'warn', title: `مهلة مورد فائتة · ${S[g.supplier].name}`, sub: `${fmt.ltr(o.id)} · ${g.lines[0].name} · لم يُخصم من العميل شيء`, act: 'نبّه المورد', done: `أُرسل تنبيه أداء إلى ${S[g.supplier].name}` }); });
+    });
+    const pend = D.suppliers.filter((s) => s.status === 'pending' && !Store.get().admin.suppliers[s.id]);
+    pend.forEach((s) => list.push({ key: 'sup-' + s.id, tone: 'info', title: `طلب انضمام مورد · ${s.name}`, sub: `${s.branch} · الوثائق مكتملة وتنتظر المراجعة`, link: '#suppliers', act: 'راجع' }));
+    const low = D.mappingQueue.filter((m) => m.confidence < 0.5 && !Store.get().admin.mappings[m.id]);
+    if (low.length) list.push({ key: 'map', tone: 'info', title: `${fmt.count(low.length, ['صف مستورد', 'صفان مستوردان', 'صفوف مستوردة', 'صفًا مستوردًا'])} بثقة ربط منخفضة`, sub: 'معزولة عن البيع حتى يقرر فريق الكتالوج', link: '#catalog', act: 'افتح المراجعة' });
+    return list;
+  }
+
+  /* ---------- حالة السوق ---------- */
+  function market() {
+    const gs = allGroups(); const now = Date.now();
+    const stage = { verifying: gs.filter((x) => x.g.state === 'VERIFYING').length, ready: orders().filter((o) => Store.orderStatus(o) === 'READY_TO_PAY').length,
+      prep: gs.filter((x) => ['PAID', 'PREPARING'].includes(x.g.state)).length, moving: gs.filter((x) => ['READY', ...Store.MOVING].includes(x.g.state)).length,
+      delivered: gs.filter((x) => x.g.state === 'DELIVERED' && x.g.job && x.g.job.deliveredAt && now - x.g.job.deliveredAt < H12).length };
+    const ex = exceptions(); const open = ex.filter((x) => !resolved(x.key));
+    const recent = orders().filter((o) => now - o.createdAt < H12);
+    const hours = [...Array(12)].map((_, i) => { const end = now - (11 - i) * 3600 * 1000; return { label: new Date(end).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'Asia/Riyadh' }).replace(/:\d\d$/, ':00'), v: recent.filter((o) => o.createdAt <= end && o.createdAt > end - 3600 * 1000).length }; });
+    const gmv = recent.filter((o) => o.payment.state === 'CAPTURED').reduce((a, o) => a + Store.orderTotals(o).items, 0);
+    const worst = D.suppliers.filter((s) => s.status === 'approved').map((s) => ({ s, rs: Store.responseStats(s.id) })).sort((a, b) => b.rs.timeouts - a.rs.timeouts)[0];
+    return `<div class="title-row"><div><h1>حالة السوق الآن</h1><p class="finding">${open.length ? `<b>${fmt.count(open.length, ['حالة تحتاج', 'حالتان تحتاجان', 'حالات تحتاج', 'حالة تحتاج'])} قرارًا.</b> ` : '<b>لا حالات معلقة.</b> '}${worst && worst.rs.timeouts ? `أكثر الموردين تفويتًا للمهلة: ${worst.s.name} (${worst.rs.timeouts} مهل اليوم).` : ''}</p></div>
+        <div class="acts"><span class="meta">الرياض · ${fmt.date(now)}</span></div></div>
+      <div class="grid top">
+        <div class="kpis pipe span-12" role="group" aria-label="مسار الطلبات الآن">
+          <div class="kpi"><div class="kpi-label">بانتظار رد المورد</div><div class="kpi-value num">${stage.verifying}</div><div class="delta">مهلة ${POLICY.verifySec / 60} دقائق لكل طلب</div></div>
+          <div class="kpi"><div class="kpi-label">محجوز وينتظر الدفع</div><div class="kpi-value num">${stage.ready}</div><div class="delta">حجز ${POLICY.holdSec / 60} دقائق</div></div>
+          <div class="kpi"><div class="kpi-label">قيد التجهيز</div><div class="kpi-value num">${stage.prep}</div><div class="delta">شحنات مدفوعة لدى الفروع</div></div>
+          <div class="kpi"><div class="kpi-label">جاهز أو مع المندوب</div><div class="kpi-value num">${stage.moving}</div><div class="delta">${fmt.count(gs.filter((x) => x.g.state === 'READY').length, ['واحدة بلا مندوب', 'اثنتان بلا مندوب', 'بلا مندوب', 'بلا مندوب'])}</div></div>
+          <div class="kpi"><div class="kpi-label">سُلّم آخر 12 ساعة</div><div class="kpi-value num">${stage.delivered}</div><div class="delta">قيمة القطع المدفوعة ${fmt.money(gmv)}</div></div>
+        </div>
+        <section class="panel span-7" aria-labelledby="ex-h"><header><h2 id="ex-h">يحتاج قرارًا</h2><span class="meta">مرتبة بالخطورة</span></header>
+          ${ex.length ? ex.sort((a, b) => ['neg', 'warn', 'info'].indexOf(a.tone) - ['neg', 'warn', 'info'].indexOf(b.tone)).map((x) => { const r = resolved(x.key); return `<div class="exc ${r ? 'done' : ''}"><span class="dot ${x.tone}"></span><div class="t"><b>${x.title}</b><span class="s">${r ? `حُسم ${fmt.time(r.at)}: ${r.text}` : x.sub}</span></div>
+            ${r ? U.pill('حُسم', 'pos') : x.link ? `<a class="btn" href="${x.link}">${x.act}</a>` : `<button class="btn" type="button" data-resolve="${x.key}" data-text="${U.esc(x.done)}">${x.act}</button>`}</div>`; }).join('') : '<div class="empty">لا حالات معلقة.</div>'}
+        </section>
+        <section class="panel span-5" aria-labelledby="ch-h"><header><h2 id="ch-h">الطلبات بالساعة</h2><span class="meta">آخر 12 ساعة · ${recent.length} طلبًا</span></header><div class="chart" data-chart='${JSON.stringify(hours)}'></div></section>
+        <section class="panel span-7 flush" aria-labelledby="sp-h"><header><h2 id="sp-h">أداء الموردين</h2><a class="link" href="#suppliers">كل الموردين</a></header>
+          <div class="table-wrap" style="padding:4px 8px 8px"><table class="t stack"><thead><tr><th>المورد</th><th>ربط المخزون</th><th class="n">وسيط زمن الرد</th><th class="n">مهل فائتة</th><th class="n">القبول</th></tr></thead><tbody>
+          ${D.suppliers.filter((s) => s.status === 'approved').map((s) => { const rs = Store.responseStats(s.id); const pct = Math.min(100, (rs.median / POLICY.verifySec) * 100);
+            return `<tr><td><b style="font-weight:500">${s.name}</b><span class="sub">${s.branch}</span></td><td class="hide-sm">${s.integrationLabel}</td><td class="n"><span class="bar-cell"><span class="num">${fmt.dur(rs.median)}</span><span class="track" aria-hidden="true"><span class="${pct > 85 ? 'bad' : ''}" style="width:${pct}%"></span></span></span></td><td class="n num line2">${rs.timeouts}</td><td class="n num act">${fmt.pct(s.acceptRate)}</td></tr>`; }).join('')}
+          </tbody></table></div><p class="meta" style="padding:0 20px 16px">الشريط: زمن الرد نسبةً إلى مهلة ${POLICY.verifySec / 60} دقائق.</p></section>
+        <section class="panel span-5" aria-labelledby="fd-h"><header><h2 id="fd-h">آخر الأحداث</h2><a class="link" href="#audit">السجل الكامل</a></header>
+          <ol class="feed" style="padding:0;list-style:none">${auditRows().slice(0, 7).map((e) => `<li><span class="when">${fmt.time(e.at)}</span><span><b>${e.actor}</b> ${e.text}${e.order ? ` · ${fmt.ltr(e.order)}` : ''}</span></li>`).join('')}</ol></section>
+      </div>`;
+  }
+  function auditRows() { const st = Store.get(); const fromOrders = st.orders.flatMap((o) => o.timeline.map((e) => ({ ...e, order: o.id }))); const admin = st.audit.filter((e) => !e.order); return [...fromOrders, ...admin].sort((a, b) => b.at - a.at); }
+
+  /* ---------- الطلبات ---------- */
+  function ordersView() {
+    const groupsOf = { all: () => true, verifying: (o) => ['VERIFYING', 'READY_TO_PAY', 'ACTION_REQUIRED'].includes(Store.orderStatus(o)), active: (o) => ['PREPARING', 'IN_DELIVERY', 'PAYMENT_PROCESSING'].includes(Store.orderStatus(o)), issues: (o) => o.payment.state === 'REVIEW' || o.exception || o.cancelled, done: (o) => Store.orderStatus(o) === 'DELIVERED' };
+    const tabs = [['all', 'الكل'], ['verifying', 'قبل الدفع'], ['active', 'جارية'], ['issues', 'تحتاج متابعة'], ['done', 'مُسلّمة']];
+    let list = orders().filter(groupsOf[ui.tab]); if (ui.q) list = list.filter((o) => (o.id + o.customer + o.district).includes(ui.q));
+    return `<div class="title-row"><div><h1>الطلبات</h1><p class="finding">حالة الطلب مشتقة من شحناته وحالة الدفع، ولا تُعدل يدويًا. كل تصحيح أمر مسمى بسبب.</p></div></div>
+      <div class="tabs" role="tablist">${tabs.map(([k, n]) => `<button role="tab" type="button" data-tab="${k}" aria-selected="${ui.tab === k}">${n}<span class="n">${orders().filter(groupsOf[k]).length}</span></button>`).join('')}</div>
+      <div class="toolbar"><label class="search">${U.icon('search')}<input data-filter="q" value="${U.esc(ui.q)}" placeholder="رقم الطلب أو العميل أو الحي"></label><span class="spacer"></span><span class="count">${fmt.count(list.length, ['طلب واحد', 'طلبان', 'طلبات', 'طلبًا'])}</span></div>
+      <div class="table-wrap"><table class="t stack"><thead><tr><th>الطلب</th><th>العميل</th><th>الموردون</th><th class="n">الإجمالي</th><th>الحالة</th><th class="n">الوقت</th></tr></thead><tbody>
+      ${list.map((o) => { const st = Store.orderStatus(o); return `<tr class="clickable" data-open="${o.id}"><td>${fmt.ltr(o.id)}<span class="sub">${o.vehicle ? `${V[o.vehicle].model} ${V[o.vehicle].year}` : ''}</span></td><td class="line2">${o.customer} · ${o.district}</td><td class="hide-sm">${o.groups.map((g) => S[g.supplier].name).join('، ')}</td><td class="n hide-sm">${fmt.money(Store.orderTotals(o).total)}</td><td class="act">${U.pill(Store.ORDER_LABEL[st], Store.tone(st))}</td><td class="n num hide-sm">${fmt.time(o.createdAt)}</td></tr>`; }).join('') || '<tr><td colspan="6"><div class="empty">لا طلبات في هذا التصنيف.</div></td></tr>'}
+      </tbody></table></div>`;
+  }
+  function orderSheet(id) {
+    const o = Store.findOrder(id); if (!o) return; const st = Store.orderStatus(o); const t = Store.orderTotals(o);
+    U.dialog(`<div class="sheet-head"><h2>${fmt.ltr(o.id)} · ${Store.ORDER_LABEL[st]}</h2><button class="btn ghost icon" data-close aria-label="إغلاق">${U.icon('x')}</button></div>
+      <div class="sheet-body">
+        <dl><div class="kv"><dt>العميل</dt><dd>${o.customer} · حي ${o.district}</dd></div><div class="kv"><dt>الدفع</dt><dd>${o.payment.state === 'NONE' ? 'لم يبدأ' : `${o.payment.method || ''} · ${o.payment.state}`}</dd></div><div class="kv"><dt>الإجمالي</dt><dd>${fmt.money(t.total)} <span class="muted small">منها ضريبة ${fmt.money(t.vat)}</span></dd></div></dl>
+        ${o.groups.map((g) => `<div class="panel" style="padding:14px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:6px"><b>${S[g.supplier].name}</b>${U.pill(Store.GROUP_LABEL[g.state], 'info')}</div><div class="small muted">${g.lines.map((l) => `${l.name} × ${l.qty} · ${fmt.sar(l.price * l.qty)} ر.س`).join('<br>')}${g.pkg ? `<br>الحزمة ${fmt.ltr(g.pkg.code)}` : ''}${g.job && g.job.courier ? ` · ${C[g.job.courier].name}` : ''}</div></div>`).join('')}
+        <div><div class="label" style="margin-bottom:8px">السجل</div><ol class="tl" style="padding:0;list-style:none">${[...o.timeline].reverse().map((e) => `<li><span class="when">${fmt.time(e.at)}</span><span><b>${e.actor}</b> ${e.text}</span></li>`).join('')}</ol></div></div>`);
+  }
+
+  /* ---------- الموردون ---------- */
+  function suppliersView() {
+    const st = Store.get(); const pending = D.suppliers.filter((s) => s.status === 'pending');
+    return `<div class="title-row"><div><h1>الموردون</h1><p class="finding">لا ينشر المورد عروضًا قابلة للشراء قبل اعتماده. الوثائق خاصة ولا تظهر للعملاء.</p></div></div>
+      <div class="grid top">
+        ${pending.map((s) => { const dec = st.admin.suppliers[s.id]; return `<section class="panel span-5" aria-label="طلب ${s.name}"><header><h2>طلب انضمام · ${s.name}</h2>${dec ? U.pill(dec.decision === 'approved' ? 'معتمد' : 'مرفوض', dec.decision === 'approved' ? 'pos' : 'neg') : U.pill('ينتظر المراجعة', 'warn')}</header>
+          <p class="small muted" style="margin-bottom:12px">${s.branch} · ${s.hours}</p>
+          <div class="docs">${[['السجل التجاري', fmt.ltr(s.cr), 'تحقق آلي: نشط'], ['شهادة ضريبة القيمة المضافة', fmt.ltr(s.vat), 'تحقق آلي: مطابق للاسم'], ['الحساب البنكي للصرف', fmt.ltr('SA•• •••• •••• 7781'), 'يحتاج اعتمادًا منفصلًا من المالية'], ['عقد المنصة', 'نسخة 0.3', 'موقّع إلكترونيًا']].map(([n, v, h]) => `<div class="doc">${U.icon('file')}<div class="t"><b style="font-weight:500">${n}</b><div class="small muted">${v} · ${h}</div></div></div>`).join('')}</div>
+          ${dec ? `<p class="small muted" style="margin-top:12px">${dec.decision === 'approved' ? 'اعتُمد' : 'رُفض'} ${fmt.time(dec.at)}${dec.reason ? ` · ${dec.reason}` : ''}</p>` : `<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><button class="btn primary" type="button" data-sup="${s.id}" data-dec="approved">اعتمد المورد</button><button class="btn" type="button" data-sup="${s.id}" data-dec="rejected">اطلب استكمالًا</button></div>`}</section>`; }).join('')}
+        <section class="panel span-7 flush" aria-labelledby="ap-h"><header><h2 id="ap-h">موردون معتمدون</h2><span class="meta">${D.suppliers.filter((s) => s.status === 'approved').length}</span></header>
+          <div class="table-wrap" style="padding:4px 8px 8px"><table class="t stack"><thead><tr><th>المورد</th><th>المخزون</th><th class="n">العروض</th><th class="n">التقييم</th></tr></thead><tbody>
+          ${D.suppliers.filter((s) => s.status === 'approved').map((s) => { const offs = D.offers.filter((o) => o.supplier === s.id).map((o) => Store.effectiveOffer(o.id)); const stale = offs.filter((o) => Store.verifyReasons(o).length).length;
+            return `<tr><td><b style="font-weight:500">${s.name}</b><span class="sub">${s.branch} · ${fmt.ltr(s.cr)}</span></td><td class="line2">${s.integrationLabel}${stale ? ` · ${stale} قديمة` : ''}</td><td class="n num hide-sm">${offs.length}</td><td class="n num act">${s.rating}</td></tr>`; }).join('')}
+          </tbody></table></div></section>
+      </div>`;
+  }
+
+  /* ---------- الكتالوج ---------- */
+  function catalogView() {
+    const st = Store.get(); const q = D.mappingQueue;
+    const decided = (m) => st.admin.mappings[m.id];
+    return `<div class="title-row"><div><h1>مراجعة ربط الكتالوج</h1><p class="finding">الصف المستورد لا يُنشر حتى يُربط بقطعة معيارية. التشابه في الاسم لا يكفي: قطعتان مختلفتان لا تُدمجان (مثال: مساعد 2WD مقابل 4WD).</p></div></div>
+      <div class="table-wrap"><table class="t stack"><thead><tr><th>ما كتبه المورد</th><th>المقترح</th><th class="n">الثقة</th><th>السبب</th><th></th></tr></thead><tbody>
+      ${q.map((m) => { const p = m.proposed && P[m.proposed]; const d = decided(m); return `<tr><td><span class="raw">${m.raw}</span><span class="sub">${S[m.supplier].name} · ${fmt.ltr(m.sku)}</span></td>
+        <td class="line2">${p ? `${p.name}${p.oem[0] ? ` · ${fmt.ltr(p.oem[0])}` : ''}` : '<span class="muted">لا قطعة مطابقة</span>'}</td>
+        <td class="n hide-sm"><span class="conf"><span class="num">${fmt.pct(m.confidence)}</span><span class="track" aria-hidden="true"><span class="${m.confidence < 0.5 ? 'low' : ''}" style="width:${m.confidence * 100}%"></span></span></span></td>
+        <td class="small muted hide-sm">${m.reason}</td>
+        <td class="act">${d ? U.pill(d.decision, d.decision === 'رُبط' ? 'pos' : 'neutral') : `<div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">${p ? `<button class="btn" type="button" data-map="${m.id}" data-dec="رُبط">اربط</button>` : ''}<button class="btn" type="button" data-map="${m.id}" data-dec="${p ? 'قطعة مختلفة' : 'قطعة جديدة'}">${p ? 'مختلفة' : 'أنشئ قطعة'}</button></div>`}</td></tr>`; }).join('')}
+      </tbody></table></div>`;
+  }
+
+  /* ---------- المندوبون ---------- */
+  function couriersView() {
+    const gs = allGroups(); const st = Store.get();
+    return `<div class="title-row"><div><h1>المندوبون</h1><p class="finding">قبول المهمة ذري: مندوب واحد يفوز، ولا يرى العنوان إلا المندوب المسند الحالي.</p></div></div>
+      <div class="table-wrap"><table class="t stack"><thead><tr><th>المندوب</th><th>المركبة</th><th>الآن</th><th class="n">مسلّمة اليوم</th></tr></thead><tbody>
+      ${D.couriers.map((c) => { const cur = gs.find((x) => x.g.job && x.g.job.courier === c.id && Store.MOVING.includes(x.g.state)); const n = gs.filter((x) => x.g.job && x.g.job.courier === c.id && x.g.state === 'DELIVERED').length;
+        return `<tr><td><div style="display:flex;gap:10px;align-items:center">${U.avatar(c.name, c.initial)}<div><b style="font-weight:500">${c.name}</b><span class="sub">تقييم ${c.rating}</span></div></div></td><td class="hide-sm">${c.vehicle} · ${c.plate}</td><td class="line2">${cur ? `${Store.GROUP_LABEL[cur.g.state]} · ${fmt.ltr(cur.g.pkg.code)}` : c.id === D.meta.demoCourier && !st.courier.available ? 'غير متاح' : 'متاح'}</td><td class="n num act">${n}</td></tr>`; }).join('')}
+      </tbody></table></div>`;
+  }
+
+  /* ---------- السياسات ---------- */
+  function policiesView() {
+    return `<div class="title-row"><div><h1>السياسات</h1><p class="finding">القيم أدناه للتطوير والمحاكاة (development_only)، وليست التزامًا تجاريًا. لا يتحول «مقترح» إلى «معتمد» إلا بقرار مالكه.</p></div></div>
+      <div class="table-wrap"><table class="t stack"><thead><tr><th>القرار</th><th>السياسة</th><th>القيمة</th><th>الحالة</th><th>المالك</th></tr></thead><tbody>
+      ${D.policies.map((p) => `<tr class="policy-row"><td class="hide-sm">${fmt.ltr(p.id)}</td><td><b style="font-weight:500">${p.name}</b><span class="sub">${p.note}</span></td><td class="line2">${p.value}</td><td class="act">${U.pill(p.status === 'APPROVED' ? 'معتمد' : 'مقترح', p.status === 'APPROVED' ? 'pos' : 'warn')}</td><td class="hide-sm">${p.owner}</td></tr>`).join('')}
+      </tbody></table></div>`;
+  }
+
+  /* ---------- السجل ---------- */
+  function auditView() {
+    let rows = auditRows(); if (ui.q) rows = rows.filter((e) => (e.actor + e.text + (e.order || '')).includes(ui.q));
+    return `<div class="title-row"><div><h1>سجل التدقيق</h1><p class="finding">كل أثر مالي أو مخزني أو حيازة يُسجل حدثًا جديدًا ولا يُمحى. التصحيح حدث إضافي.</p></div></div>
+      <div class="toolbar"><label class="search">${U.icon('search')}<input data-filter="q" value="${U.esc(ui.q)}" placeholder="طلب أو طرف أو كلمة"></label><span class="spacer"></span><span class="count">${fmt.count(rows.length, ['حدث واحد', 'حدثان', 'أحداث', 'حدثًا'])}</span></div>
+      <div class="table-wrap"><table class="t stack"><thead><tr><th class="n" style="text-align:start">الوقت</th><th>الطرف</th><th>الحدث</th><th>الطلب</th></tr></thead><tbody>
+      ${rows.slice(0, 120).map((e) => `<tr><td class="num">${fmt.time(e.at)}</td><td class="hide-sm">${e.actor}</td><td class="line2">${e.text}</td><td class="act">${e.order ? fmt.ltr(e.order) : '<span class="muted">—</span>'}</td></tr>`).join('')}
+      </tbody></table></div>`;
+  }
+
+  /* ---------- الرسم ---------- */
+  function page() {
+    const r = route(); const views = { market, orders: ordersView, suppliers: suppliersView, catalog: catalogView, couriers: couriersView, policies: policiesView, audit: auditView };
+    const open = exceptions().filter((x) => !resolved(x.key)).length;
+    const nav = [
+      { items: [{ id: 'market', name: 'حالة السوق', icon: 'chart', count: open }, { id: 'orders', name: 'الطلبات', icon: 'box' }] },
+      { label: 'الشبكة', items: [{ id: 'suppliers', name: 'الموردون', icon: 'store', count: D.suppliers.filter((s) => s.status === 'pending' && !Store.get().admin.suppliers[s.id]).length, calm: true }, { id: 'catalog', name: 'مراجعة الكتالوج', icon: 'list', count: D.mappingQueue.filter((m) => !Store.get().admin.mappings[m.id]).length, calm: true }, { id: 'couriers', name: 'المندوبون', icon: 'truck' }] },
+      { label: 'الحوكمة', items: [{ id: 'policies', name: 'السياسات', icon: 'shield' }, { id: 'audit', name: 'سجل التدقيق', icon: 'history' }] },
+    ];
+    const bottom = `<div style="padding:0 8px 8px">${U.themeSeg()}</div><button class="nav-item" type="button" data-act="reset" style="border:0;background:none;width:100%">${U.icon('refresh')}<span>إعادة ضبط العرض</span></button><a class="nav-item" href="index.html">${U.icon('grid')}<span>كل الواجهات</span></a><div class="user-row">${U.avatar('هند العمليات', 'ه')}<div class="t"><b>هند</b><span>عمليات السوق</span></div></div>`;
+    return BO.shell({ product: 'للإدارة', scope: { name: 'سوق الرياض', sub: 'مناطق الشمال والوسط والشرق', initial: 'ر' }, nav, current: r, title: TITLES[r], body: views[r](), bottom });
+  }
+  const render = U.renderer(root, () => { const html = page(); setTimeout(drawCharts, 0); return html; });
+  function drawCharts() { root.querySelectorAll('[data-chart]').forEach((el) => { if (el.dataset.drawn) return; el.dataset.drawn = '1'; const rows = JSON.parse(el.dataset.chart); Charts.bars(el, { labels: rows.map((r) => r.label), values: rows.map((r) => r.v), highlight: rows.length - 1, height: 210 }); }); }
+  window.addEventListener('hashchange', () => { ui.q = ''; render(); window.scrollTo(0, 0); });
+  Store.on(render); render();
+
+  root.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-resolve],[data-tab],[data-open],[data-sup],[data-map],[data-act]'); if (!t) return; const d = t.dataset;
+    if (d.resolve) { A.resolve(d.resolve, d.text); U.toast('سُجل القرار في سجل التدقيق'); }
+    else if (d.tab) { ui.tab = d.tab; render(); } else if (d.open) orderSheet(d.open);
+    else if (d.sup) { A.supplierDecision(d.sup, d.dec, d.dec === 'rejected' ? 'طُلب تحديث شهادة الضريبة' : ''); U.toast(d.dec === 'approved' ? 'اعتُمد المورد؛ تُنشر عروضه بعد ربط الكتالوج' : 'أُرسل طلب الاستكمال'); }
+    else if (d.map) { A.mappingDecision(d.map, d.dec); U.toast(`سُجل القرار: ${d.dec}`); }
+    else if (d.act === 'reset') { A.reset(); U.toast('أُعيد ضبط العرض'); }
+    else if (d.act === 'scope') U.toast('مدينة واحدة في هذا الإصدار');
+  });
+  root.addEventListener('input', (e) => { if (e.target.dataset.filter === 'q') { ui.q = e.target.value.trim(); const pos = e.target.selectionStart; root.innerHTML = page(); drawCharts(); const i = root.querySelector('[data-filter="q"]'); if (i) { i.focus(); i.setSelectionRange(pos, pos); } } });
+  root.addEventListener('submit', (e) => { if (e.target.dataset.form === 'top-search') { e.preventDefault(); ui.q = e.target.q.value.trim(); ui.tab = 'all'; location.hash = 'orders'; } });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>صامولة للموردين</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/backoffice.css">
+<style>
+  .prep-row .t b { font-weight: 500; }
+  .upload { display: grid; place-items: center; gap: 8px; padding: 28px 16px; border: 1px dashed var(--control); border-radius: var(--radius-card); text-align: center; color: var(--muted); }
+  .upload.drag { border-color: var(--text); background: var(--raised); }
+  .confirm-list { display: grid; gap: 12px; padding: 14px; border-radius: var(--radius-card); background: var(--raised); }
+  .reject-opts { display: grid; gap: 8px; }
+  .reject-opts label { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-control); cursor: pointer; }
+  .reject-opts label:has(input:checked) { border-color: var(--text); }
+  .reject-opts input { accent-color: var(--text); }
+  .detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: start; }
+  .mini-tl { display: grid; gap: 8px; font-size: 13px; }
+  .mini-tl li { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 8px; }
+  .mini-tl .when { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .hours { display: grid; gap: 0; }
+  .hours .kv + .kv { border-top: 1px solid var(--rule); }
+  @media (max-width: 640px) { .detail-grid { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="assets/data.js"></script>
+<script src="assets/store.js"></script>
+<script src="assets/ui.js"></script>
+<script src="assets/charts.js"></script>
+<script src="assets/bo.js"></script>
+<script>
+(function () {
+  const { A, fmt, P, S, C, D, POLICY } = Store; const U = UI;
+  const SID = D.meta.demoSupplier; const sup = S[SID];
+  const root = document.getElementById('app');
+  const ui = { tab: 'prep', q: '', offerFilter: 'all', uploads: [] };
+
+  /* ---------- اختيارات ---------- */
+  const mine = () => Store.get().orders.flatMap((o) => o.groups.filter((g) => g.supplier === SID).map((g) => ({ o, g })));
+  const verifying = () => mine().filter((x) => x.g.state === 'VERIFYING').sort((a, b) => a.g.verify.deadline - b.g.verify.deadline);
+  const toPrep = () => mine().filter((x) => ['PAID', 'PREPARING'].includes(x.g.state)).sort((a, b) => a.o.payment.at - b.o.payment.at);
+  const atCourier = () => mine().filter((x) => ['READY', 'ASSIGNED', 'AT_PICKUP'].includes(x.g.state));
+  const moving = () => mine().filter((x) => ['IN_TRANSIT', 'AT_DROPOFF'].includes(x.g.state));
+  const delivered = () => mine().filter((x) => x.g.state === 'DELIVERED');
+  const H12 = 12 * 3600 * 1000;
+  const paidRecent = () => mine().filter((x) => x.o.payment.state === 'CAPTURED' && Date.now() - x.o.payment.at < H12);
+  const myOffers = () => D.offers.filter((o) => o.supplier === SID).map((o) => Store.effectiveOffer(o.id));
+  const staleOffers = () => myOffers().filter((o) => Store.verifyReasons(o).length);
+  const itemsSum = (list) => list.reduce((a, x) => a + Store.groupTotal(x.g), 0);
+  const lineText = (g) => g.lines.map((l) => `${l.name}${l.qty > 1 ? ` × ${l.qty}` : ''}`).join('، ');
+
+  function route() { const h = location.hash.slice(1); return ['today', 'verify', 'orders', 'offers', 'import', 'payouts', 'branch'].includes(h) ? h : 'today'; }
+  const TITLES = { today: 'اليوم', verify: 'طلبات التحقق', orders: 'الطلبات', offers: 'العروض والمخزون', import: 'استيراد المخزون', payouts: 'الرصيد والتسويات', branch: 'الفرع' };
+
+  /* ---------- اليوم ---------- */
+  function vreq({ o, g }) {
+    const l = g.lines[0]; const left = (g.verify.deadline - Date.now()) / 1000;
+    return `<article class="vreq ${left < 60 ? 'urgent' : ''}" aria-label="طلب تحقق ${o.id}">
+      <div class="what">${U.thumb(l.thumb, 'sm')}<div class="t"><b>${lineText(g)}</b>
+        <span class="small muted">${l.oem ? fmt.ltr(l.oem) + ' · ' : ''}${D.brands[l.brand].name} · عميل في ${o.district} · ${fmt.ltr(o.id)}</span>
+        <span class="small">السعر المعروض ${fmt.money(Store.groupTotal(g))}</span></div></div>
+      <div class="clock">${U.countdown(g.verify.deadline)}<span>متبقٍ للرد</span></div>
+      ${U.ttl(g.verify.deadline, POLICY.verifySec)}
+      <div class="bottom"><span class="reasons">${U.icon('info')}لماذا نسألك: ${g.verify.reasons.join('، ')}</span>
+        <div class="acts"><button class="btn" type="button" data-reject="${g.id}">غير متوفرة</button><button class="btn primary" type="button" data-confirm="${g.id}">${U.icon('check')}متوفرة، احجزها</button></div></div>
+    </article>`;
+  }
+  function prepRow({ o, g }) {
+    const act = g.state === 'PAID' ? `<button class="btn primary" type="button" data-start="${g.id}">ابدأ التجهيز</button>`
+      : !(g.pkg && g.pkg.proofAt) ? `<button class="btn" type="button" data-proof="${g.id}">${U.icon('camera')}صوّر القطعة</button>` : `<button class="btn primary" type="button" data-ready="${g.id}">جاهز للاستلام</button>`;
+    return `<div class="list-row prep-row">${U.thumb(g.lines[0].thumb, 'sm')}<div class="t"><b>${lineText(g)}</b><span class="s">${fmt.ltr(o.id)} · دُفع ${fmt.ago((Date.now() - o.payment.at) / 60000)}${g.pkg ? ` · ملصق ${fmt.ltr(g.pkg.code)}` : ''}</span></div><div class="end">${act}</div></div>`;
+  }
+  function today() {
+    const v = verifying(); const p = toPrep(); const rs = Store.responseStats(SID); const recent = paidRecent(); const stale = staleOffers();
+    const finding = v.length ? `<b>${fmt.count(v.length, ['طلب تحقق ينتظر', 'طلبا تحقق ينتظران', 'طلبات تحقق تنتظر', 'طلب تحقق ينتظر'])} ردك الآن</b>؛ أقرب مهلة تنتهي ${fmt.time(v[0].g.verify.deadline)}. العميل لا يدفع قبل ردك.`
+      : p.length ? `<b>${fmt.count(p.length, ['طلب مدفوع ينتظر', 'طلبان مدفوعان ينتظران', 'طلبات مدفوعة تنتظر', 'طلبًا مدفوعًا ينتظر'])} التجهيز.</b> لا طلبات تحقق الآن.` : 'لا شيء ينتظرك الآن.';
+    const hours = [...Array(12)].map((_, i) => { const end = Date.now() - (11 - i) * 3600 * 1000; return { label: new Date(end).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'Asia/Riyadh' }).replace(/:\d\d$/, ':00'), v: Math.round(recent.filter((x) => x.o.payment.at <= end && x.o.payment.at > end - 3600 * 1000).reduce((a, x) => a + Store.groupTotal(x.g), 0) / 100) }; });
+    return `<div class="title-row"><div><h1>اليوم في ${sup.branch}</h1><p class="finding">${finding}</p></div>
+        <div class="acts"><a class="btn" href="#import">${U.icon('upload')}ارفع ملف المخزون</a></div></div>
+      <div class="grid top">
+        <section class="panel span-7" aria-labelledby="vq-h"><header><h2 id="vq-h">طلبات التحقق العاجلة</h2><span class="meta">المهلة ${POLICY.verifySec / 60} دقائق · تُحسب من ساعة الخادم</span></header>
+          <div class="vq">${v.map(vreq).join('') || `<div class="empty"><b>لا طلبات تحقق الآن</b><span>تصلك هنا عندما يطلب عميل قطعة مخزونها قديم أو كميتها قليلة. ${stale.length ? `حدّث ${fmt.count(stale.length, ['عرضًا واحدًا', 'عرضين', 'عروض', 'عرضًا'])} لتُحجز فورًا بلا انتظار.` : ''}</span></div>`}</div></section>
+        <section class="panel span-5" aria-labelledby="pp-h"><header><h2 id="pp-h">للتجهيز الآن</h2><a class="link" href="#orders">كل الطلبات</a></header>
+          <div>${p.map(prepRow).join('') || '<div class="empty">لا طلبات مدفوعة تنتظر التجهيز.</div>'}</div>
+          ${atCourier().length ? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--rule)"><div class="meta" style="margin-bottom:6px">بانتظار المندوب</div>${atCourier().map(({ o, g }) => `<div class="list-row"><div class="t"><b>${lineText(g)}</b><span class="s">${fmt.ltr(g.pkg.code)} · ${g.job && g.job.courier ? `${C[g.job.courier].name}: ${Store.GROUP_LABEL[g.state]}` : 'لم يقبلها مندوب بعد'}</span></div></div>`).join('')}</div>` : ''}
+        </section>
+        <div class="kpis span-12" role="group" aria-label="مؤشرات آخر 12 ساعة">
+          <div class="kpi"><div class="kpi-label">مبيعات آخر 12 ساعة</div><div class="kpi-value">${fmt.money(itemsSum(recent))}</div><div class="delta">${fmt.count(recent.length, ['طلب واحد', 'طلبان', 'طلبات', 'طلبًا'])} مدفوعة · قبل العمولة</div></div>
+          <div class="kpi"><div class="kpi-label">وسيط زمن الرد على التحقق</div><div class="kpi-value num">${rs.median == null ? '—' : fmt.dur(rs.median)}</div><div class="delta">الهدف أقل من 3 د${rs.live ? ` · ${rs.live} رد في هذه الجلسة` : ''}</div></div>
+          <div class="kpi"><div class="kpi-label">مهل فائتة اليوم</div><div class="kpi-value num">${rs.timeouts}</div><div class="delta">${rs.timeouts ? '<span class="bad">كل مهلة فائتة تلغي طلب عميل</span>' : 'لا مهل فائتة'}</div></div>
+          <div class="kpi"><div class="kpi-label">عروض تحتاج تأكيدًا يدويًا</div><div class="kpi-value num">${stale.length}<small> من ${myOffers().length}</small></div><div class="delta">مخزونها قديم أو كميتها قليلة</div></div>
+        </div>
+        <section class="panel span-7" aria-labelledby="ch-h"><header><h2 id="ch-h">المبيعات بالساعة</h2><span class="meta">ر.س · آخر 12 ساعة · الساعة الحالية بالأزرق</span></header><div class="chart" data-chart='${JSON.stringify(hours)}'></div></section>
+        <section class="panel span-5" aria-labelledby="st-h"><header><h2 id="st-h">عروض قديمة البيانات</h2><a class="link" href="#offers">كل العروض</a></header>
+          ${stale.slice(0, 5).map((o) => `<div class="list-row">${U.thumb(P[o.part].thumb, 'sm')}<div class="t"><b>${P[o.part].name}</b><span class="s">${D.brands[o.brand].name} · ${Store.verifyReasons(o).join('، ')}</span></div><div class="end"><button class="btn" type="button" data-edit="${o.id}">حدّث</button></div></div>`).join('') || '<div class="empty">كل عروضك حديثة وتُحجز فورًا.</div>'}
+        </section>
+      </div>`;
+  }
+
+  /* ---------- سجل التحقق ---------- */
+  function verifyView() {
+    const all = mine().filter((x) => x.g.verify && x.g.verify.required).sort((a, b) => b.g.verify.requestedAt - a.g.verify.requestedAt);
+    const label = (x) => x.g.state === 'VERIFYING' ? U.pill('بانتظار ردك', 'warn') : x.g.state === 'REJECTED' ? U.pill('رفضته', 'neutral') : x.g.state === 'EXPIRED' ? U.pill('فاتت المهلة', 'neg') : U.pill('أكدته', 'pos');
+    return `<div class="title-row"><div><h1>طلبات التحقق</h1><p class="finding">تأكيدك يعني أنك عزلت القطعة فعليًا؛ يُحجز للعميل ${POLICY.holdSec / 60} دقائق حتى يدفع.</p></div></div>
+      ${verifying().length ? `<div class="vq" style="margin-bottom:24px">${verifying().map(vreq).join('')}</div>` : ''}
+      <div class="table-wrap"><table class="t stack"><thead><tr><th>الطلب</th><th>القطعة</th><th>سبب السؤال</th><th class="n">زمن الرد</th><th>النتيجة</th></tr></thead><tbody>
+      ${all.map((x) => `<tr><td>${fmt.ltr(x.o.id)}<span class="sub">${fmt.time(x.g.verify.requestedAt)}</span></td><td class="line2">${lineText(x.g)}</td><td class="hide-sm small muted">${x.g.verify.reasons.join('، ')}</td><td class="n num">${x.g.verify.respondedAt ? fmt.dur((x.g.verify.respondedAt - x.g.verify.requestedAt) / 1000) : '—'}</td><td class="act">${label(x)}</td></tr>`).join('') || '<tr><td colspan="5"><div class="empty">لا طلبات تحقق بعد.</div></td></tr>'}
+      </tbody></table></div>`;
+  }
+
+  /* ---------- الطلبات ---------- */
+  function ordersView() {
+    const tabs = [['prep', 'للتجهيز', toPrep()], ['courier', 'بانتظار المندوب', atCourier()], ['moving', 'مع المندوب', moving()], ['done', 'مُسلّمة', delivered()]];
+    const cur = tabs.find((t) => t[0] === ui.tab) || tabs[0]; let rows = cur[2];
+    if (ui.q) rows = rows.filter((x) => (x.o.id + lineText(x.g)).includes(ui.q));
+    return `<div class="title-row"><div><h1>الطلبات</h1><p class="finding">كل فرع يجهز شحنته بملصق وصورة قبل أن يستلمها المندوب. لا نعرض لك هاتف العميل أو عنوانه.</p></div></div>
+      <div class="tabs" role="tablist">${tabs.map(([k, n, l]) => `<button role="tab" type="button" data-tab="${k}" aria-selected="${cur[0] === k}">${n}<span class="n">${l.length}</span></button>`).join('')}</div>
+      <div class="toolbar"><label class="search">${U.icon('search')}<input id="oq" data-filter="q" value="${U.esc(ui.q)}" placeholder="رقم الطلب أو اسم القطعة"></label><span class="spacer"></span><span class="count">${fmt.count(rows.length, ['طلب واحد', 'طلبان', 'طلبات', 'طلبًا'])}</span></div>
+      <div class="table-wrap"><table class="t stack"><thead><tr><th>الطلب</th><th>القطع</th><th>الحي</th><th class="n">القيمة</th><th>الحالة</th><th></th></tr></thead><tbody>
+      ${rows.map(({ o, g }) => `<tr class="clickable" data-open="${g.id}"><td>${fmt.ltr(o.id)}<span class="sub">${fmt.time(o.payment.at || o.createdAt)}</span></td><td class="line2">${lineText(g)}</td><td class="hide-sm">${o.district}</td><td class="n">${fmt.money(Store.groupTotal(g))}</td><td class="hide-sm">${U.pill(Store.GROUP_LABEL[g.state], g.state === 'DELIVERED' ? 'pos' : g.state === 'PAID' ? 'warn' : 'info')}</td><td class="act n">${U.icon('fwd')}</td></tr>`).join('') || `<tr><td colspan="6"><div class="empty">لا طلبات في «${cur[1]}».</div></td></tr>`}
+      </tbody></table></div>`;
+  }
+  function orderSheet(gid) {
+    const [o, g] = Store.findGroup(gid); if (!g) return;
+    U.dialog(`<div class="sheet-head"><h2>${fmt.ltr(o.id)} · ${Store.GROUP_LABEL[g.state]}</h2><button class="btn ghost icon" data-close aria-label="إغلاق">${U.icon('x')}</button></div>
+      <div class="sheet-body"><div class="detail-grid"><div style="display:grid;gap:8px">
+        ${g.lines.map((l) => `<div class="list-row">${U.thumb(l.thumb, 'sm')}<div class="t"><b>${l.name}${l.qty > 1 ? ` × ${l.qty}` : ''}</b><span class="s">${l.oem ? fmt.ltr(l.oem) + ' · ' : ''}${D.brands[l.brand].name}</span></div>${fmt.money(l.price * l.qty)}</div>`).join('')}
+        <dl><div class="kv"><dt>العميل</dt><dd>حي ${o.district}</dd></div>${g.pkg ? `<div class="kv"><dt>ملصق الحزمة</dt><dd>${fmt.ltr(g.pkg.code)}</dd></div>` : ''}${g.job && g.job.courier ? `<div class="kv"><dt>المندوب</dt><dd>${C[g.job.courier].name} · ${C[g.job.courier].plate}</dd></div>` : ''}</dl></div>
+        ${g.pkg && g.pkg.proofAt ? U.proof(g.pkg.code, g.pkg.proofAt, 'تغليف') : ''}</div>
+        <div><div class="label" style="margin-bottom:8px">سجل الشحنة</div><ol class="mini-tl" style="padding:0;list-style:none">${[...o.timeline].reverse().map((e) => `<li><span class="when">${fmt.time(e.at)}</span><span><b>${e.actor}</b> ${e.text}</span></li>`).join('')}</ol></div></div>`);
+  }
+
+  /* ---------- العروض ---------- */
+  function offersView() {
+    let list = myOffers(); if (ui.offerFilter === 'stale') list = list.filter((o) => Store.verifyReasons(o).length);
+    if (ui.q) list = list.filter((o) => (P[o.part].name + (P[o.part].oem[0] || '') + o.id).includes(ui.q));
+    return `<div class="title-row"><div><h1>العروض والمخزون</h1><p class="finding">العرض المحدث بكمية كافية يُحجز تلقائيًا؛ غيره يحتاج تأكيدك خلال 3 دقائق. تعديل السعر لا يغير اقتباسًا صدر للعميل.</p></div>
+      <div class="acts"><a class="btn" href="#import">${U.icon('upload')}استيراد ملف</a></div></div>
+      <div class="toolbar"><label class="search">${U.icon('search')}<input data-filter="q" value="${U.esc(ui.q)}" placeholder="القطعة أو الرقم"></label>
+        <div class="seg" role="group" aria-label="تصفية">${[['all', 'الكل'], ['stale', 'تحتاج تحديثًا']].map(([k, n]) => `<button type="button" data-of="${k}" aria-pressed="${ui.offerFilter === k}">${n}</button>`).join('')}</div><span class="spacer"></span><span class="count">${fmt.count(list.length, ['عرض واحد', 'عرضان', 'عروض', 'عرضًا'])}</span></div>
+      <div class="table-wrap"><table class="t stack"><thead><tr><th>القطعة</th><th>العلامة</th><th class="n">السعر</th><th class="n">المتاح</th><th>آخر تحديث</th><th>الحجز</th><th></th></tr></thead><tbody>
+      ${list.map((o) => { const p = P[o.part]; const why = Store.verifyReasons(o); return `<tr><td><div style="display:flex;gap:10px;align-items:center">${U.thumb(p.thumb, 'sm')}<div><b style="font-weight:500">${p.name}</b><span class="sub">${p.oem[0] ? fmt.ltr(p.oem[0]) : p.spec}</span></div></div></td>
+        <td class="hide-sm"><span style="display:inline-flex;gap:6px;align-items:center">${U.tierPill(o.brand)}${D.brands[o.brand].name}</span></td><td class="n">${fmt.money(o.price)}</td><td class="n num">${o.qty}</td>
+        <td class="line2">${fmt.ago(o.ageMin)}${o.revisions ? ` · نسخة ${o.revisions + 1}` : ''}</td><td class="hide-sm">${why.length ? U.pill('تأكيد يدوي', 'warn') : U.pill('حجز فوري', 'pos')}</td><td class="act n"><button class="btn" type="button" data-edit="${o.id}">تعديل</button></td></tr>`; }).join('')}
+      </tbody></table></div>`;
+  }
+  function editSheet(id) {
+    const o = Store.effectiveOffer(id); const p = P[o.part];
+    const d = U.dialog(`<form data-form="edit"><div class="sheet-head"><h2>${p.name} · ${D.brands[o.brand].name}</h2><button class="btn ghost icon" type="button" data-close aria-label="إغلاق">${U.icon('x')}</button></div>
+      <div class="sheet-body"><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="field"><label for="ep">السعر شامل الضريبة (ر.س)</label><input class="input num" id="ep" name="price" inputmode="decimal" value="${fmt.sar(o.price).replace(/,/g, '')}" dir="ltr"></div>
+        <div class="field"><label for="eq">الكمية على الرف</label><input class="input num" id="eq" name="qty" inputmode="numeric" value="${o.qty}" dir="ltr"></div></div>
+        <p class="notice">${U.icon('info')}<span>الحفظ ينشئ نسخة جديدة من العرض بختم وقت الآن، فيصبح «حديثًا». الاقتباسات الصادرة تبقى على سعرها القديم.</span></p></div>
+      <div class="sheet-foot"><button class="btn" type="button" data-close>إلغاء</button><button class="btn primary">حفظ نسخة جديدة</button></div></form>`);
+    d.querySelector('form').addEventListener('submit', (e) => { e.preventDefault(); const price = Math.round(parseFloat(e.target.price.value) * 100); const qty = parseInt(e.target.qty.value, 10);
+      if (!(price > 0) || !(qty >= 0)) { U.toast('أدخل سعرًا موجبًا وكمية صحيحة'); return; } A.updateOffer(id, price, qty); d.close(); U.toast('حُفظت نسخة جديدة من العرض'); });
+  }
+
+  /* ---------- الاستيراد ---------- */
+  function importView() {
+    const b = D.importBatch;
+    return `<div class="title-row"><div><h1>استيراد المخزون</h1><p class="finding">ارفع ملف Excel أو CSV. الصف الخاطئ لا يفسد الباقي، والصف غير المربوط بقطعة معيارية يُعزل حتى يراجعه فريق الكتالوج.</p></div></div>
+      <div class="grid top">
+        <section class="panel span-7" aria-labelledby="ib-h"><header><h2 id="ib-h">آخر دفعة</h2><span class="meta">${fmt.ltr(b.id)} · ${fmt.ago(b.uploadedMinAgo)}</span></header>
+          <p class="small muted" style="margin-bottom:12px">${b.file}</p>
+          <div class="kpis" style="margin-bottom:16px"><div class="kpi"><div class="kpi-label">الصفوف</div><div class="kpi-value num">${b.rows}</div></div><div class="kpi"><div class="kpi-label">نُشرت</div><div class="kpi-value num">${b.ok}</div></div><div class="kpi"><div class="kpi-label">أخطاء</div><div class="kpi-value num" style="color:var(--negative)">${b.errors}</div></div><div class="kpi"><div class="kpi-label">معزولة للمراجعة</div><div class="kpi-value num">${b.quarantined}</div></div></div>
+          <table class="t"><thead><tr><th class="n" style="text-align:start">الصف</th><th>SKU</th><th>المشكلة</th></tr></thead><tbody>${b.errorRows.map((r) => `<tr><td class="num">${r.row}</td><td>${r.sku === '—' ? '<span class="muted">—</span>' : fmt.ltr(r.sku)}</td><td>${r.msg}</td></tr>`).join('')}</tbody></table>
+          <p class="small muted" style="margin-top:12px">${b.ok} + ${b.errors} + ${b.quarantined} = ${b.ok + b.errors + b.quarantined} صفًا. إعادة رفع الملف نفسه لا تنشئ عروضًا مكررة.</p></section>
+        <section class="panel span-5" aria-labelledby="up-h"><header><h2 id="up-h">ارفع ملفًا جديدًا</h2></header>
+          <label class="upload" id="drop"><input type="file" accept=".csv,.xlsx" class="sr" id="file">${U.icon('upload')}<b class="ink">اسحب الملف هنا أو اختره</b><span class="small">الأعمدة: SKU، رقم القطعة، العلامة، الحالة، السعر، الكمية، الضمان</span></label>
+          ${ui.uploads.map((u) => `<div class="list-row"><div class="t"><b>${U.esc(u.name)}</b><span class="s">قُرئ ${fmt.ago((Date.now() - u.at) / 60000)} · محاكاة: الملف لا يغادر متصفحك</span></div><div class="end">${U.pill('قيد المعالجة', 'info')}</div></div>`).join('')}
+        </section></div>`;
+  }
+
+  /* ---------- الرصيد ---------- */
+  function payoutsView() {
+    const comm = (x) => Math.round(Store.groupTotal(x.g) * POLICY.commission); const net = (x) => Store.groupTotal(x.g) - comm(x);
+    const pending = mine().filter((x) => x.o.payment.state === 'CAPTURED' && x.g.state !== 'DELIVERED'); const due = delivered();
+    const sum = (l, f) => l.reduce((a, x) => a + f(x), 0);
+    return `<div class="title-row"><div><h1>الرصيد والتسويات</h1><p class="finding">للقراءة فقط. العمولة ${fmt.pct(POLICY.commission)} قيمة محاكاة، ودورة الصرف لم تُعتمد بعد (القرار D-12)، لذلك لا يوجد صرف حقيقي.</p></div></div>
+      <div class="kpis" style="margin-bottom:24px">
+        <div class="kpi"><div class="kpi-label">متوقع (مدفوع ولم يُسلّم)</div><div class="kpi-value">${fmt.money(sum(pending, net))}</div><div class="delta">${fmt.count(pending.length, ['شحنة واحدة', 'شحنتان', 'شحنات', 'شحنة'])}</div></div>
+        <div class="kpi"><div class="kpi-label">مستحق بعد التسليم</div><div class="kpi-value">${fmt.money(sum(due, net))}</div><div class="delta">بعد خصم عمولة ${fmt.money(sum(due, comm))}</div></div>
+        <div class="kpi"><div class="kpi-label">مصروف</div><div class="kpi-value"><span class="muted">—</span></div><div class="delta">لا دورة صرف معتمدة</div></div>
+      </div>
+      <div class="table-wrap"><table class="t stack"><thead><tr><th>الطلب</th><th>الحالة</th><th class="n">القيمة</th><th class="n">العمولة</th><th class="n">الصافي</th></tr></thead><tbody>
+      ${[...pending, ...due].map((x) => `<tr><td>${fmt.ltr(x.o.id)}<span class="sub">${lineText(x.g)}</span></td><td class="line2">${x.g.state === 'DELIVERED' ? 'مستحق' : 'متوقع'}</td><td class="n hide-sm">${fmt.money(Store.groupTotal(x.g))}</td><td class="n hide-sm">−${fmt.money(comm(x))}</td><td class="n act">${fmt.money(net(x))}</td></tr>`).join('')}
+      </tbody></table></div>`;
+  }
+
+  /* ---------- الفرع ---------- */
+  function branchView() {
+    return `<div class="title-row"><div><h1>${sup.branch}</h1><p class="finding">${sup.name} · سجل تجاري ${fmt.ltr(sup.cr)} · رقم ضريبي ${fmt.ltr(sup.vat)}</p></div></div>
+      <div class="grid top">
+        <section class="panel span-6"><header><h2>ساعات العمل</h2><span class="meta">بتوقيت الرياض</span></header><dl class="hours">${['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'].map((d) => `<div class="kv"><dt>${d}</dt><dd>${sup.hours}</dd></div>`).join('')}<div class="kv"><dt>الجمعة</dt><dd>4:00 م – 11:00 م</dd></div></dl></section>
+        <section class="panel span-6"><header><h2>ربط المخزون</h2>${U.pill(sup.integrationLabel, 'warn')}</header>
+          <p class="small">يحدّث الفرع مخزونه بملف يدوي، لذلك تصبح بياناته قديمة بعد ${POLICY.staleMin / 60} ساعات ويطلب النظام تأكيدك. ربط نقطة البيع يجعل معظم الطلبات تُحجز فورًا.</p>
+          <div class="label" style="margin:16px 0 6px">الموظفون</div>
+          <div class="list-row">${U.avatar('عبدالعزيز الأفق', 'ع')}<div class="t"><b>عبدالعزيز</b><span class="s">مالك · يعتمد الأسعار والتسويات</span></div></div>
+          <div class="list-row">${U.avatar('سامي', 'س')}<div class="t"><b>سامي</b><span class="s">مستودع · يرد على التحقق ويجهز</span></div></div></section>
+      </div>`;
+  }
+
+  /* ---------- الحوارات ---------- */
+  function confirmSheet(gid) {
+    const [o, g] = Store.findGroup(gid); if (!g) return; const l = g.lines[0];
+    const d = U.dialog(`<form data-form="confirm"><div class="sheet-head"><h2>تأكيد التوفر</h2><button class="btn ghost icon" type="button" data-close aria-label="إغلاق">${U.icon('x')}</button></div>
+      <div class="sheet-body"><div class="list-row" style="padding:0">${U.thumb(l.thumb, 'sm')}<div class="t"><b>${lineText(g)}</b><span class="s">${l.oem ? fmt.ltr(l.oem) + ' · ' : ''}${D.brands[l.brand].name} · جديدة</span></div><span>${U.countdown(g.verify.deadline)}</span></div>
+        <div class="confirm-list"><label class="check"><input type="checkbox" name="c1" required><span>القطعة على الرف بالعلامة والحالة الموصوفة</span></label>
+          <label class="check"><input type="checkbox" name="c2" required><span>عزلت الكمية (${g.lines.reduce((a, x) => a + x.qty, 0)}) عن البيع في المحل حتى ينتهي الحجز</span></label></div>
+        <div class="field"><label for="shelf">موقع الرف <span class="muted">(اختياري)</span></label><input class="input" id="shelf" name="shelf" placeholder="مثال: ممر 4، رف ب"></div>
+        <p class="small muted">بعد التأكيد تُحجز القطعة للعميل ${POLICY.holdSec / 60} دقائق. إن لم يدفع تعود الكمية تلقائيًا.</p></div>
+      <div class="sheet-foot"><button class="btn" type="button" data-close>رجوع</button><button class="btn primary" id="cf" disabled>تأكيد وحجز</button></div></form>`);
+    const f = d.querySelector('form'); f.addEventListener('change', () => { d.querySelector('#cf').disabled = !(f.c1.checked && f.c2.checked); });
+    f.addEventListener('submit', (e) => { e.preventDefault(); const r = A.respond(gid, true); d.close(); U.toast(r === 'ok' ? 'أُكد التوفر وحُجزت القطعة للعميل' : r === 'late' ? 'وصل ردك بعد انتهاء المهلة، فلم يُعتمد' : 'تغيرت حالة الطلب قبل ردك'); });
+  }
+  function rejectSheet(gid) {
+    const d = U.dialog(`<form data-form="reject"><div class="sheet-head"><h2>لماذا لا تتوفر؟</h2><button class="btn ghost icon" type="button" data-close aria-label="إغلاق">${U.icon('x')}</button></div>
+      <div class="sheet-body"><div class="reject-opts">${['نفدت الكمية', 'الكمية أقل من المطلوب', 'القطعة الموجودة تالفة أو مفتوحة', 'السعر تغير ويحتاج عرضًا جديدًا'].map((r, i) => `<label><input type="radio" name="r" value="${r}" ${i === 0 ? 'checked' : ''}>${r}</label>`).join('')}</div>
+        <p class="small muted">يرى العميل السبب ويختار عرضًا آخر. سنقترح تحديث كمية هذا العرض.</p></div>
+      <div class="sheet-foot"><button class="btn" type="button" data-close>رجوع</button><button class="btn primary">أرسل الرفض</button></div></form>`);
+    d.querySelector('form').addEventListener('submit', (e) => { e.preventDefault(); A.respond(gid, false, e.target.r.value); d.close(); U.toast('أُرسل الرفض للعميل'); });
+  }
+
+  /* ---------- الرسم ---------- */
+  function page() {
+    const r = route(); const views = { today, verify: verifyView, orders: ordersView, offers: offersView, import: importView, payouts: payoutsView, branch: branchView };
+    const nav = [
+      { items: [{ id: 'today', name: 'اليوم', icon: 'home' }, { id: 'verify', name: 'طلبات التحقق', icon: 'clock', count: verifying().length }, { id: 'orders', name: 'الطلبات', icon: 'box', count: toPrep().length, calm: true }] },
+      { label: 'المخزون', items: [{ id: 'offers', name: 'العروض والأسعار', icon: 'tag' }, { id: 'import', name: 'استيراد الملفات', icon: 'upload' }] },
+      { label: 'الحساب', items: [{ id: 'payouts', name: 'الرصيد والتسويات', icon: 'wallet' }, { id: 'branch', name: 'الفرع والموظفون', icon: 'store' }] },
+    ];
+    const bottom = `<div style="padding:0 8px 8px">${U.themeSeg()}</div><a class="nav-item" href="index.html">${U.icon('grid')}<span>كل الواجهات</span></a><div class="user-row">${U.avatar('سامي', 'س')}<div class="t"><b>سامي</b><span>موظف مستودع</span></div></div>`;
+    return BO.shell({ product: 'للموردين', scope: { name: sup.name, sub: sup.branch, initial: 'أ' }, nav, current: r, title: TITLES[r], body: views[r](), bottom });
+  }
+  const render = U.renderer(root, () => { const html = page(); setTimeout(drawCharts, 0); return html; });
+  function drawCharts() { root.querySelectorAll('[data-chart]').forEach((el) => { if (el.dataset.drawn) return; el.dataset.drawn = '1'; const rows = JSON.parse(el.dataset.chart); Charts.bars(el, { labels: rows.map((r) => r.label), values: rows.map((r) => r.v), highlight: rows.length - 1, height: 190 }); }); }
+  window.addEventListener('hashchange', () => { ui.q = ''; render(); window.scrollTo(0, 0); });
+  Store.on(render); render();
+
+  root.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-confirm],[data-reject],[data-start],[data-proof],[data-ready],[data-edit],[data-tab],[data-of],[data-open],[data-act]'); if (!t) return; const d = t.dataset;
+    if (d.confirm) confirmSheet(d.confirm); else if (d.reject) rejectSheet(d.reject);
+    else if (d.start) { A.startPrep(d.start); U.toast('اطبع الملصق وألصقه على الحزمة'); }
+    else if (d.proof) { A.prepProof(d.proof); U.toast('رُفعت صورة القطعة والتغليف (محاكاة)'); }
+    else if (d.ready) { A.markReady(d.ready); U.toast('أُنشئت مهمة توصيل للمندوبين'); }
+    else if (d.edit) editSheet(d.edit); else if (d.tab) { ui.tab = d.tab; render(); } else if (d.of) { ui.offerFilter = d.of; render(); } else if (d.open) orderSheet(d.open);
+    else if (d.act === 'scope') U.toast('للفرع الآخر (الصناعية الجديدة) صلاحيات منفصلة');
+  });
+  root.addEventListener('input', (e) => { if (e.target.dataset.filter === 'q') { ui.q = e.target.value.trim(); const pos = e.target.selectionStart; root.innerHTML = page(); drawCharts(); const i = root.querySelector('[data-filter="q"]'); if (i) { i.focus(); i.setSelectionRange(pos, pos); } } });
+  root.addEventListener('submit', (e) => { if (e.target.dataset.form === 'top-search') { e.preventDefault(); ui.q = e.target.q.value.trim(); ui.tab = 'prep'; location.hash = 'orders'; } });
+  root.addEventListener('change', (e) => { if (e.target.id === 'file' && e.target.files[0]) { ui.uploads.unshift({ name: e.target.files[0].name, at: Date.now() }); render(); U.toast('قُرئ الملف (محاكاة)؛ يصلك تقرير الصفوف هنا'); } });
+  root.addEventListener('dragover', (e) => { const z = e.target.closest('#drop'); if (z) { e.preventDefault(); z.classList.add('drag'); } });
+  root.addEventListener('dragleave', (e) => { const z = e.target.closest('#drop'); if (z) z.classList.remove('drag'); });
+  root.addEventListener('drop', (e) => { const z = e.target.closest('#drop'); if (!z) return; e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) { ui.uploads.unshift({ name: f.name, at: Date.now() }); render(); U.toast('قُرئ الملف (محاكاة)'); } });
+})();
+</script>
+</body>
+</html>

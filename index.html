@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>عرض صامولة</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/base.css">
+<style>
+  /* صفحة الدخول: صورة الرياض والمندوب في الواجهة مع تطبيق العميل حيًّا داخل هاتف، ثم الأدوار الأربعة
+     بصورة لكل دور، ثم رف من الكتالوج بصوره وأسعاره، ثم الرحلة خطوة بخطوة. */
+  body { background: var(--surface); }
+  .wrap { max-width: 1240px; margin: 0 auto; padding-block: calc(16px + env(safe-area-inset-top, 0px)) 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
+  .top .brand { font-size: 20px; }
+  .top nav { display: flex; gap: 6px; align-items: center; }
+  .top .note { font-size: 12.5px; color: var(--muted); }
+
+  /* الواجهة: صورة كبيرة بحركة بطيئة، والنص فوق ستار داكن من جهة البداية */
+  .hero { position: relative; border-radius: 24px; overflow: hidden; background: #111315; color: #fff; isolation: isolate; min-height: 520px; display: grid; align-items: end; }
+  .hero .ph { position: absolute; inset: 0; z-index: -2; overflow: hidden; }
+  .hero .ph img { width: 100%; height: 100%; object-fit: cover; transform-origin: 30% 60%; animation: drift 22s ease-in-out infinite alternate; }
+  @keyframes drift { from { transform: scale(1.02) translateX(0); } to { transform: scale(1.12) translateX(-2.5%); } }
+  .hero::before { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(to top, rgba(10, 11, 12, 0.88) 0%, rgba(10, 11, 12, 0.55) 45%, rgba(10, 11, 12, 0.15) 100%); }
+  .hero .txt { padding: 28px 22px 26px; display: grid; gap: 16px; max-width: 640px; }
+  .hero h1 { font-size: clamp(32px, 5.6vw, 60px); line-height: 1.08; font-weight: 700; letter-spacing: -0.02em; }
+  .hero p { font-size: 17px; line-height: 1.6; color: rgba(255, 255, 255, 0.88); max-width: 52ch; }
+  .hero .acts { display: flex; gap: 10px; flex-wrap: wrap; }
+  .hero .acts .btn { height: 48px; padding: 0 22px; font-size: 15px; }
+  .hero .acts .btn.light { background: #fff; color: #111; border-color: transparent; }
+  .hero .acts .btn.light:hover { background: #e9edf0; }
+  .hero .acts .btn.line { background: transparent; color: #fff; border-color: rgba(255, 255, 255, 0.45); }
+  .hero .acts .btn.line:hover { background: rgba(255, 255, 255, 0.1); }
+  .hero .facts { display: flex; gap: 8px 18px; flex-wrap: wrap; font-size: 13.5px; color: rgba(255, 255, 255, 0.8); }
+  .hero .facts span { display: inline-flex; gap: 6px; align-items: center; }
+  .hero .facts svg { width: 16px; height: 16px; color: #9fe3f0; }
+  /* هاتف حي: تطبيق العميل نفسه داخل إطار */
+  .phone { display: none; }
+
+  /* الأدوار: صورة لكل دور، والزر بمسافة واضحة من الحافة */
+  .sec { margin-top: 64px; display: grid; gap: 20px; }
+  .sec > header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .sec h2 { font-size: clamp(22px, 3vw, 30px); font-weight: 700; letter-spacing: -0.01em; line-height: 1.2; }
+  .sec header p { color: var(--muted); max-width: 56ch; }
+  .roles { display: grid; gap: 14px; }
+  .role { display: grid; grid-template-rows: auto 1fr; border-radius: 18px; overflow: hidden; background: var(--ground); transition: transform 180ms var(--ease); }
+  .role:hover { transform: translateY(-2px); }
+  .role:hover .pic img { transform: scale(1.04); }
+  .role .pic { aspect-ratio: 16 / 9; overflow: hidden; background: #c9ced3; }
+  .role .pic img { width: 100%; height: 100%; object-fit: cover; transition: transform 500ms var(--ease); }
+  .role .body { padding: 18px; display: flex; flex-direction: column; gap: 6px; }
+  .role h3 { font-size: 20px; font-weight: 700; display: flex; gap: 8px; align-items: center; }
+  .role h3 svg { width: 20px; height: 20px; color: var(--accent); }
+  .role p { color: var(--muted); }
+  .role .try { margin-bottom: 14px; }
+  .role .try { color: var(--text); font-size: 13.5px; }
+  .role .go { align-self: flex-start; margin-top: auto;  display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 18px; border-radius: 999px; background: var(--primary); color: var(--primary-ink); font-weight: 600; }
+  .role .go svg { width: 16px; height: 16px; }
+
+  /* رف الكتالوج */
+  .shelf { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .item { display: grid; border-radius: 16px; overflow: hidden; background: var(--ground); }
+  .item .thumb { width: 100%; height: auto; aspect-ratio: 1 / 1; border-radius: 0; }
+  .item .b { padding: 10px 12px 14px; display: grid; gap: 2px; }
+  .item b { font-weight: 600; line-height: 1.35; }
+  .item .r { color: var(--muted); font-size: 12.5px; }
+  .item .money { font-weight: 700; margin-top: 4px; }
+
+  /* الرحلة: صورة المستودع بجانب الخطوات */
+  .journey { display: grid; gap: 0; border-radius: 20px; overflow: hidden; background: var(--ground); }
+  .journey .pic { min-height: 220px; background: #c9ced3; }
+  .journey .pic img { width: 100%; height: 100%; object-fit: cover; }
+  .journey .in { padding: 24px 22px; display: grid; gap: 16px; align-content: start; }
+  .journey h2 { font-size: 22px; font-weight: 700; }
+  .journey ol { margin: 0; padding-inline-start: 22px; display: grid; gap: 12px; }
+  .journey li::marker { font-weight: 600; color: var(--muted); }
+  .journey li b { font-weight: 600; }
+  .journey .acts { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .data .cols { display: grid; gap: 24px; }
+  .data h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .data ul { margin: 0; padding-inline-start: 18px; display: grid; gap: 6px; }
+  .foot { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--border); display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap; color: var(--muted); font-size: 13px; }
+
+  @media (min-width: 720px) {
+    .roles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .shelf { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .journey { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); }
+    .data .cols { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  @media (min-width: 1080px) {
+    .hero { min-height: 640px; align-items: center; grid-template-columns: minmax(0, 1fr) auto; }
+    .hero::before { background: linear-gradient(to left, rgba(10, 11, 12, 0.86) 0%, rgba(10, 11, 12, 0.6) 40%, rgba(10, 11, 12, 0.1) 75%); }
+    .hero .txt { padding: 48px 56px; max-width: 800px; }
+    .phone { display: block; width: calc(390px * 0.72 + 16px); height: calc(800px * 0.72 + 16px); margin: 32px 48px 32px 40px; padding: 8px; border-radius: 34px; background: #0d0f10; box-shadow: 0 30px 60px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08); }
+    .phone .screen { width: 390px; height: 800px; border-radius: 36px; overflow: hidden; transform: scale(0.72); transform-origin: top right; background: var(--ground); }
+    .phone iframe { width: 390px; height: 800px; border: 0; display: block; }
+    .roles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .shelf { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  }
+  @media (prefers-reduced-motion: reduce) { .hero .ph img { animation: none; } }
+</style>
+</head>
+<body>
+<div class="wrap"><div id="top"></div><div id="app"></div></div>
+<script src="assets/data.js"></script>
+<script src="assets/store.js"></script>
+<script src="assets/ui.js"></script>
+<script>
+(function () {
+  const { A, fmt, S, D } = Store; const U = UI; const root = document.getElementById('app');
+  const minPrice = (pid) => Math.min(...Store.offersFor(pid).map((o) => o.price));
+  function top() {
+    const approved = D.suppliers.filter((s) => s.status === 'approved').length;
+    return `<header class="top"><span class="brand">${U.mark()}<span>صامولة</span></span>
+        <nav><span class="note">اسم مبدئي · عرض تفاعلي 0.2</span></nav></header>
+      <section class="hero" aria-labelledby="h1">
+        <div class="ph"><img src="assets/img/promo/courier-street.webp" alt="مندوبا توصيل على دراجتين في طريق بالرياض عند الغروب" fetchpriority="high"></div>
+        <div class="txt">
+          <h1 id="h1">قطع غيار من موردي الرياض، محجوزة قبل أن تدفع</h1>
+          <p>سوق متعدد الموردين: قارن العروض، احجز القطعة على الرف، ثم ادفع ويوصلها مندوب إلى بابك. أربع واجهات تعمل على بيانات واحدة.</p>
+          <div class="acts"><a class="btn round light" href="customer.html">${U.icon('cart')}جرّب تطبيق العميل</a><a class="btn round line" href="live.html">${U.icon('grid')}العرض المتزامن</a></div>
+          <div class="facts"><span>${U.icon('store')}${approved} موردين</span><span>${U.icon('box')}${D.parts.length} قطعة بصورها</span><span>${U.icon('car')}${D.vehicles.length} سيارة</span><span>${U.icon('lock')}دفع محاكى بلا بطاقات</span></div>
+        </div>
+        <div class="phone" aria-hidden="true"><div class="screen"><iframe src="customer.html" title="تطبيق العميل" tabindex="-1" loading="lazy"></iframe></div></div>
+      </section>`;
+  }
+  document.getElementById('top').innerHTML = top();
+  function page() {
+    const st = Store.get(); const v = st.orders.filter((o) => o.groups.some((g) => g.state === 'VERIFYING' && g.supplier === D.meta.demoSupplier)).length;
+    const jobs = st.orders.flatMap((o) => o.groups).filter((g) => g.state === 'READY' && g.job && !g.job.courier).length;
+    const approved = D.suppliers.filter((s) => s.status === 'approved').length;
+    const roles = [
+      ['customer.html', 'car', 'promo-oil', 'العميل', 'يبحث برقم القطعة أو اسمها، يرى توافقها مع سيارته، ويقارن عروض الموردين.', 'السلة جاهزة بقطعتين لكامري 2021؛ اضغط «احجز القطع».'],
+      ['vendor.html', 'store', 'vendor-shop', 'المورد', `${S[D.meta.demoSupplier].name}، ${S[D.meta.demoSupplier].branch}: يؤكد التوفر خلال 3 دقائق، يجهز ويصوّر، ويتابع رصيده.`, v ? `${fmt.count(v, ['طلب تحقق ينتظره', 'طلبا تحقق ينتظرانه', 'طلبات تحقق تنتظره', 'طلب تحقق ينتظره'])} الآن.` : 'لا طلبات تحقق الآن؛ تصل عندما يحجز العميل.'],
+      ['courier.html', 'truck', 'courier-delivery', 'المندوب', 'يقبل مهمة واحدة، يمسح الملصق ويصوّر عند الاستلام، ويسلّم برمز من العميل.', `${fmt.count(jobs, ['مهمة جاهزة', 'مهمتان جاهزتان', 'مهام جاهزة', 'مهمة جاهزة'])} للاستلام.`],
+      ['admin.html', 'chart', 'hero-warehouse', 'الإدارة', 'ترى مسار الطلبات والاستثناءات وأداء الموردين، وتعتمد الموردين وربط الكتالوج.', 'ابدأ من «يحتاج قرارًا».'],
+    ];
+    const shelf = ['p01', 'p02', 'p05', 'p06', 'p08', 'p09', 'p07', 'p16', 'p03', 'p11', 'p24', 'p25'].map((id) => D.parts.find((p) => p.id === id)).filter(Boolean).slice(0, 12);
+    return `<section class="sec" aria-labelledby="r-h"><header><h2 id="r-h">أربع واجهات، طلب واحد</h2><p>ما تفعله في واجهة يظهر في الأخرى خلال ثانية، حتى لو فتحتها في تبويب آخر.</p></header>
+        <nav class="roles" aria-label="الواجهات">${roles.map(([href, ic, img, name, desc, tryIt]) => `<a class="role" href="${href}">
+          <span class="pic"><img src="assets/img/promo/${img}.webp" alt="" loading="lazy" decoding="async"></span>
+          <span class="body"><h3>${U.icon(ic)}${name}</h3><p>${desc}</p><p class="try">${tryIt}</p><span class="go">افتح ${name === 'الإدارة' ? 'اللوحة' : 'الواجهة'}${U.icon('fwd')}</span></span></a>`).join('')}</nav></section>
+
+      <section class="sec" aria-labelledby="s-h"><header><h2 id="s-h">من رفوف الموردين</h2><p>أقل سعر بين عروض الموردين لكل قطعة، شامل الضريبة.</p></header>
+        <div class="shelf">${shelf.map((p) => `<a class="item" href="customer.html#part-${p.id}">${U.thumb(p.thumb)}<span class="b"><b>${p.name}</b><span class="r">${p.oem[0] ? fmt.ltr(p.oem[0]) : p.spec}</span><span><span class="r">من </span>${fmt.money(minPrice(p.id))}</span></span></a>`).join('')}</div></section>
+
+      <section class="sec journey" aria-labelledby="j-h"><div class="pic"><img src="assets/img/promo/hero-warehouse.webp" alt="موظف يمسح رمز صندوق في مستودع قطع غيار" loading="lazy" decoding="async"></div>
+        <div class="in"><h2 id="j-h">جرّب الرحلة كاملة</h2>
+          <ol><li>في <b>العميل</b> افتح السلة واضغط «احجز القطع». قطعة تُحجز فورًا، والأخرى تنتظر المورد.</li>
+            <li>في <b>المورد</b> أكّد التوفر بعد أن تعزل القطعة. يتحدث تبويب العميل وحده.</li>
+            <li>ادفع (محاكاة). لا يُفتح الدفع قبل حجز كل القطع.</li>
+            <li>في <b>المورد</b> ابدأ التجهيز، صوّر الحزمة، ثم «جاهز للاستلام».</li>
+            <li>في <b>المندوب</b> اقبل المهمة، امسح الملصق وصوّر، ثم سلّم برمز العميل.</li>
+            <li>في <b>الإدارة</b> تابع الحدث في السجل والاستثناءات.</li></ol>
+          <div class="acts"><a class="btn round primary lg" href="live.html">${U.icon('grid')}عرض متزامن للأدوار الثلاثة</a></div>
+          <p class="small muted">على جهاز واحد؟ فعّل «رد المورد تلقائيًا» و«توصيل تلقائي» من حساب العميل.</p></div></section>
+
+      <section class="sec data" aria-labelledby="d-h"><header><h2 id="d-h">من أين البيانات؟</h2></header>
+        <div class="cols">
+          <div><h3>المركبات</h3><p>أكثر السيارات مبيعًا في السعودية 2025: أكسنت، يارس، كامري، هايلكس، بيجاس، كورولا، وغيرها. التغطية محدودة بإحدى عشرة سيارة.</p></div>
+          <div><h3>القطع والعروض</h3><p>${D.parts.length} قطعة و${D.offers.length} عرضًا من ${approved} موردين مختلقين. أرقام القطع بصيغة OEM حقيقية الشكل ولم تُطابق مع كتالوج مرخص؛ لا تُستخدم للشراء. الصور مولّدة للعرض.</p></div>
+          <div><h3>للإنتاج لاحقًا</h3><ul><li>كتالوج مرخص يغطي الخليج (TecDoc أو ما يعادله) بعد اختبار عينة سيارات سعودية.</li><li>ملفات الموردين نفسها مصدرًا للأسعار والمخزون وصورهم.</li><li>vPIC الأمريكي لفك الصيغة فقط؛ تغطيته لمواصفات الخليج محدودة.</li></ul></div>
+        </div></section>
+      <footer class="foot"><span>الوقت في العرض مضغوط · المهلة 3 دقائق والحجز 10 دقائق ورحلة المندوب 90 ثانية</span>
+        <span style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">${U.themeSeg()}<button class="btn round" type="button" data-reset>${U.icon('refresh')}أعد ضبط العرض</button></span></footer>`;
+  }
+  const paint = U.renderer(root, page);
+  Store.on(paint); paint();
+  root.addEventListener('click', (e) => { if (e.target.closest('[data-reset]')) { A.reset(); U.toast('أُعيد ضبط بيانات العرض'); } });
+})();
+</script>
+</body>
+</html>
